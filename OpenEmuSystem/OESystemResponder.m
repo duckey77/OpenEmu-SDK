@@ -151,6 +151,16 @@ static inline void _OEBasicSystemResponderChangeAnalogSystemKey(OESystemResponde
         [self changeAnalogEmulatorKey:key value:value];
 }
 
+static inline void _OEBasicSystemResponderChangeAccelerometerSystem(OESystemResponder *self, OESystemKey *key, CGFloat valueX, CGFloat valueY, CGFloat valueZ)
+{
+    [self changeAccelerometerEmulatorValue:key valueX:valueX valueY:valueY valueZ:valueZ];
+}
+
+static inline void _OEBasicSystemResponderChangeIRSystem(OESystemResponder *self, OESystemKey *key, CGFloat X1, CGFloat Y1, CGFloat X2, CGFloat Y2, CGFloat X3, CGFloat Y3, CGFloat X4, CGFloat Y4)
+{
+    [self changeIREmulatorValue:key X1:X1 Y1:Y1 X2:X2 Y2:Y2 X3:X3 Y3:Y3 X4:X4 Y4:Y4];
+}
+
 - (OESystemKey *)emulatorKeyForKey:(OEKeyBindingDescription *)aKey player:(NSUInteger)thePlayer;
 {
     return [OESystemKey systemKeyWithKey:[aKey index] player:thePlayer isAnalogic:[aKey isAnalogic]];
@@ -169,6 +179,16 @@ static inline void _OEBasicSystemResponderChangeAnalogSystemKey(OESystemResponde
 - (void)changeAnalogEmulatorKey:(OESystemKey *)aKey value:(CGFloat)value
 {
     [self doesNotImplementSelector:_cmd];
+}
+
+- (void)changeAccelerometerEmulatorValue:(OESystemKey *)aKey valueX:(CGFloat)valueX valueY:(CGFloat)valueY valueZ:(CGFloat)valueZ
+{
+    //[self doesNotImplementSelector:_cmd];
+}
+
+- (void)changeIREmulatorValue:(OESystemKey *)aKey X1:(CGFloat)X1 Y1:(CGFloat)Y1 X2:(CGFloat)X2 Y2:(CGFloat)Y2 X3:(CGFloat)X3 Y3:(CGFloat)Y3 X4:(CGFloat)X4 Y4:(CGFloat)Y4
+{
+    //[self doesNotImplementSelector:_cmd];
 }
 
 - (void)pressGlobalButtonWithIdentifier:(OEGlobalButtonIdentifier)identifier;
@@ -493,6 +513,20 @@ static void * __nonnull _OEJoystickStateKeyForEvent(OEHIDEvent *anEvent)
     NSString *characters = [theEvent characters];
     if([characters length] > 0 && [characters characterAtIndex:0] == 0x1B)
         [super keyUp:theEvent];
+}
+
+- (void)accelerometerMoved:(OEHIDEvent *)anEvent
+{
+    OESystemKey *key = [_keyMap systemKeyForEvent:anEvent];
+
+    _OEBasicSystemResponderChangeAccelerometerSystem(self, key, [anEvent AxisX],[anEvent AxisY], [anEvent AxisZ]);
+}
+
+- (void)IRMoved:(OEHIDEvent *)anEvent
+{
+    OESystemKey *key = [_keyMap systemKeyForEvent:anEvent];
+
+    _OEBasicSystemResponderChangeIRSystem(self, key, [anEvent X1], [anEvent Y1], [anEvent X2], [anEvent Y2],[anEvent X3], [anEvent Y3],[anEvent X4], [anEvent Y4]);
 }
 
 - (void)axisMoved:(OEHIDEvent *)anEvent
