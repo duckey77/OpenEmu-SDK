@@ -41,6 +41,12 @@ static dispatch_queue_t oehid_queue;
             case OEHIDEventTypeAxis :
                 [self axisMoved:anEvent];
                 break;
+            case OEHIDEventTypeAccelerometer :
+                [self accelerometerMoved:anEvent];
+                break;
+            case OEHIDEventTypeIR :
+                [self IRMoved:anEvent];
+                break;
             case OEHIDEventTypeTrigger :
                 if([anEvent hasOffState])
                     [self triggerRelease:anEvent];
@@ -76,6 +82,8 @@ static dispatch_queue_t oehid_queue;
 }
 
 FORWARD_MESSAGE(axisMoved, OEHIDEvent *)
+FORWARD_MESSAGE(accelerometerMoved , OEHIDEvent *)
+FORWARD_MESSAGE(IRMoved , OEHIDEvent *)
 FORWARD_MESSAGE(triggerPull, OEHIDEvent *)
 FORWARD_MESSAGE(triggerRelease, OEHIDEvent *)
 FORWARD_MESSAGE(buttonDown, OEHIDEvent *)
@@ -83,5 +91,6 @@ FORWARD_MESSAGE(buttonUp, OEHIDEvent *)
 FORWARD_MESSAGE(hatSwitchChanged, OEHIDEvent *)
 FORWARD_MESSAGE(HIDKeyDown, OEHIDEvent *)
 FORWARD_MESSAGE(HIDKeyUp, OEHIDEvent *)
+
 
 @end
