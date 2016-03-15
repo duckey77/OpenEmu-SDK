@@ -33,12 +33,15 @@
 @class OEDeviceHandler, OEHIDDeviceHandler, OEWiimoteHIDDeviceHandler;
 
 typedef enum _OEHIDEventType : NSUInteger {
-    OEHIDEventTypeAxis      = 1,
+    OEHIDEventTypeAxis          = 1,
     // Only for analogic triggers
-    OEHIDEventTypeTrigger   = 5,
-    OEHIDEventTypeButton    = 2,
-    OEHIDEventTypeHatSwitch = 3,
-	OEHIDEventTypeKeyboard  = 4,
+    OEHIDEventTypeTrigger       = 5,
+    OEHIDEventTypeButton        = 2,
+    OEHIDEventTypeHatSwitch     = 3,
+	OEHIDEventTypeKeyboard      = 4,
+    OEHIDEventTypeAccelerometer = 6,
+    OEHIDEventTypeIR            = 7,
+
 } OEHIDEventType;
 
 typedef enum _OEHIDAxis : NSUInteger {
@@ -50,6 +53,15 @@ typedef enum _OEHIDAxis : NSUInteger {
     OEHIDEventAxisRy   = 0x34,
     OEHIDEventAxisRz   = 0x35
 } OEHIDEventAxis;
+
+typedef enum _OEHIDAccelerometer : NSUInteger {
+    OEHIDEventAccelerometerWiimote,
+    OEHIDEventAccelerometerNunchuck
+} OEHIDEventAccelerometer;
+
+typedef enum _OEHIDEventIR: NSInteger {
+    OEHIDEventIRWiimote
+} OEHIDEventIR;
 
 typedef enum _OEHIDEventAxisDirection : NSInteger {
     OEHIDEventAxisDirectionNegative = -1,
@@ -103,6 +115,8 @@ extern OEHIDEventType OEHIDEventTypeFromIOHIDElement(IOHIDElementRef elem);
 + (NSUInteger)keyCodeForVirtualKey:(CGCharCode)charCode;
 + (instancetype)eventWithDeviceHandler:(OEDeviceHandler *)aDeviceHandler value:(IOHIDValueRef)aValue;
 + (instancetype)axisEventWithDeviceHandler:(OEDeviceHandler *)aDeviceHandler timestamp:(NSTimeInterval)timestamp axis:(OEHIDEventAxis)axis direction:(OEHIDEventAxisDirection)direction cookie:(NSUInteger)cookie;
++ (instancetype)accelerometerEventWithDeviceHandler:(OEDeviceHandler *)aDeviceHandler timestamp:(NSTimeInterval)timestamp accelerometer:(OEHIDEventAccelerometer)accelerometer axisX:(NSInteger)axisX axisY:(NSInteger)axisY axisZ:(NSInteger)axisZ cookie:(NSUInteger)cookie;
++ (instancetype)irEventWithDeviceHandler:(OEDeviceHandler *)aDeviceHandler timestamp:(NSTimeInterval)timestamp IR:(OEHIDEventIR)IR X1:(NSInteger)X1 Y1:(NSInteger)Y1 X2:(NSInteger)X2 Y2:(NSInteger)Y2 X3:(NSInteger)X3 Y3:(NSInteger)Y3 X4:(NSInteger)X4 Y4:(NSInteger)Y4 cookie:(NSInteger)cookie;
 + (instancetype)axisEventWithDeviceHandler:(OEDeviceHandler *)aDeviceHandler timestamp:(NSTimeInterval)timestamp axis:(OEHIDEventAxis)axis value:(CGFloat)value cookie:(NSUInteger)cookie;
 + (instancetype)axisEventWithDeviceHandler:(OEDeviceHandler *)aDeviceHandler timestamp:(NSTimeInterval)timestamp axis:(OEHIDEventAxis)axis minimum:(NSInteger)minimum value:(NSInteger)value maximum:(NSInteger)maximum cookie:(NSUInteger)cookie;
 + (instancetype)triggerEventWithDeviceHandler:(OEDeviceHandler *)aDeviceHandler timestamp:(NSTimeInterval)timestamp axis:(OEHIDEventAxis)axis direction:(OEHIDEventAxisDirection)direction cookie:(NSUInteger)cookie;
@@ -128,6 +142,19 @@ extern OEHIDEventType OEHIDEventTypeFromIOHIDElement(IOHIDElementRef elem);
 @property(readonly) OEHIDEventAxisDirection oppositeDirection; // Axis only
 @property(readonly) CGFloat                 value;             // Axis and Trigger
 @property(readonly) CGFloat                 absoluteValue;     // Axis and Trigger
+
+@property(readonly) CGFloat                 AxisX;
+@property(readonly) CGFloat                 AxisY;
+@property(readonly) CGFloat                 AxisZ;
+
+@property(readonly) CGFloat                 X1;
+@property(readonly) CGFloat                 Y1;
+@property(readonly) CGFloat                 X2;
+@property(readonly) CGFloat                 Y2;
+@property(readonly) CGFloat                 X3;
+@property(readonly) CGFloat                 Y3;
+@property(readonly) CGFloat                 X4;
+@property(readonly) CGFloat                 Y4;
 
 // Button event
 @property(readonly) NSUInteger              buttonNumber;

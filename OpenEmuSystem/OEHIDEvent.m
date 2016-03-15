@@ -109,11 +109,13 @@ NSString *NSStringFromOEHIDEventType(OEHIDEventType type)
 {
     switch(type)
     {
-        case OEHIDEventTypeAxis      : return @"OEHIDEventTypeAxis";
-        case OEHIDEventTypeTrigger   : return @"OEHIDEventTypeTrigger";
-        case OEHIDEventTypeButton    : return @"OEHIDEventTypeButton";
-        case OEHIDEventTypeHatSwitch : return @"OEHIDEventTypeHatSwitch";
-        case OEHIDEventTypeKeyboard  : return @"OEHIDEventTypeKeyboard";
+        case OEHIDEventTypeAxis               : return @"OEHIDEventTypeAxis";
+        case OEHIDEventTypeTrigger            : return @"OEHIDEventTypeTrigger";
+        case OEHIDEventTypeButton             : return @"OEHIDEventTypeButton";
+        case OEHIDEventTypeHatSwitch          : return @"OEHIDEventTypeHatSwitch";
+        case OEHIDEventTypeKeyboard           : return @"OEHIDEventTypeKeyboard";
+        case OEHIDEventTypeIR                 : return @"OEHIDEventTypeIR";
+        case OEHIDEventTypeAccelerometer      : return @"OEHIDEventTypeAccelerometer";
     }
 
     return @"<unknown>";
@@ -156,6 +158,33 @@ NSString *NSStringFromOEHIDEventAxis(OEHIDEventAxis axis)
     return ret;
 }
 
+NSString *NSStringFromOEHIDEventAccelerometer(OEHIDEventAccelerometer accelerometer)
+{
+    NSString *ret = nil;
+    // Example: ret = @"P1 -X" for Pad One X axis Negative
+    switch(accelerometer)
+    {
+        case OEHIDEventAccelerometerNunchuck : ret = @"Nunchuk";  break;
+        case OEHIDEventAccelerometerWiimote  : ret = @"WiiMote";  break;
+        default : break;
+    }
+
+    return ret;
+}
+
+NSString *NSStringFromOEHIDEventIR(OEHIDEventIR IR)
+{
+    NSString *ret = nil;
+    // Example: ret = @"P1 -X" for Pad One X axis Negative
+    switch(IR)
+    {
+        case OEHIDEventAccelerometerWiimote  : ret = @"WiiMote";  break;
+        default : break;
+    }
+
+    return ret;
+}
+
 NSString *OEHIDEventAxisDisplayDescription(OEHIDEventAxis axis, OEHIDEventAxisDirection direction)
 {
     // Example: ret = @"P1 -X" for Pad One X axis Negative
@@ -166,6 +195,22 @@ NSString *OEHIDEventAxisDisplayDescription(OEHIDEventAxis axis, OEHIDEventAxisDi
                  direction == OEHIDEventAxisDirectionNegative ? '-' : '?');
 
     return ret != nil ? [NSString stringWithFormat:@"%@%c", ret, sign] : @"";
+}
+
+NSString *OEHIDEventAccelerometerDisplayDescription(OEHIDEventAccelerometer accelerometer)
+{
+    // Example: ret = @"P1 -X" for Pad One X axis Negative
+    NSString *ret = NSStringFromOEHIDEventAccelerometer(accelerometer);
+
+    return ret != nil ? [NSString stringWithFormat:@"%@", ret] : @"";
+}
+
+NSString *OEHIDEventIRDisplayDescription(OEHIDEventIR IR)
+{
+    // Example: ret = @"P1 -X" for Pad One X axis Negative
+    NSString *ret = NSStringFromOEHIDEventIR(IR);
+
+    return ret != nil ? [NSString stringWithFormat:@"%@", ret] : @"";
 }
 
 NSString *NSStringFromIOHIDElement(IOHIDElementRef elem)
@@ -305,6 +350,19 @@ static inline BOOL _OEFloatEqual(CGFloat v1, CGFloat v2)
             CGFloat                 value;
         } axis;
         struct {
+            OEHIDEventAccelerometer  accelerometer;
+            CGFloat                  axisX;
+            CGFloat                  axisY;
+            CGFloat                  axisZ;
+        } accelerometer;
+        struct {
+            OEHIDEventIR             IR;
+            CGFloat                  X1, Y1;
+            CGFloat                  X2, Y2;
+            CGFloat                  X3, Y3;
+            CGFloat                  X4, Y4;
+        } IR;
+        struct {
             NSUInteger              buttonNumber;
             OEHIDEventState         state;
         } button;
@@ -425,6 +483,10 @@ static CGEventSourceRef _keyboardEventSource;
     {
         case OEHIDEventTypeAxis :
             return OEHIDEventAxisDisplayDescription(_data.axis.axis, _data.axis.direction);
+        case OEHIDEventTypeAccelerometer :
+            return OEHIDEventAccelerometerDisplayDescription(_data.accelerometer.accelerometer);
+        case OEHIDEventTypeIR :
+            return OEHIDEventIRDisplayDescription(_data.IR.IR);
         case OEHIDEventTypeTrigger :
             return [NSString stringWithFormat:NSLocalizedString(@"Trigger %@", @"Trigger key name with axis string."), NSStringFromOEHIDEventAxis(_data.axis.axis)];
         case OEHIDEventTypeHatSwitch :
@@ -513,6 +575,32 @@ static CGEventSourceRef _keyboardEventSource;
 
     return ret;
 }
+
++ (id)accelerometerEventWithDeviceHandler:(OEDeviceHandler *)aDeviceHandler timestamp:(NSTimeInterval)timestamp accelerometer:(OEHIDEventAccelerometer)accelerometer axisX:(NSInteger)axisX axisY:(NSInteger)axisY axisZ:(NSInteger)axisZ cookie:(NSUInteger)cookie;
+{
+    OEHIDEvent *ret = [[self alloc] initWithDeviceHandler:aDeviceHandler timestamp:timestamp cookie:cookie];
+    ret->_type = OEHIDEventTypeAccelerometer;
+    ret->_data.accelerometer.accelerometer = accelerometer;
+    ret->_data.accelerometer.axisX = axisX;
+    ret->_data.accelerometer.axisY = axisY;
+    ret->_data.accelerometer.axisZ = axisZ;
+
+    return ret;
+}
+
++ (id)irEventWithDeviceHandler:(OEDeviceHandler *)aDeviceHandler timestamp:(NSTimeInterval)timestamp IR:(OEHIDEventIR)IR X1:(NSInteger)X1 Y1:(NSInteger)Y1 X2:(NSInteger)X2 Y2:(NSInteger)Y2 X3:(NSInteger)X3 Y3:(NSInteger)Y3 X4:(NSInteger)X4 Y4:(NSInteger)Y4 cookie:(NSInteger)cookie;
+{
+    OEHIDEvent *ret = [[self alloc] initWithDeviceHandler:aDeviceHandler timestamp:timestamp cookie:cookie];
+    ret->_type = OEHIDEventTypeIR;
+    ret->_data.IR.IR = IR;
+    ret->_data.IR.X1 = X1; ret->_data.IR.Y1 = Y1;
+    ret->_data.IR.X2 = X2; ret->_data.IR.Y2 = Y2;
+    ret->_data.IR.X3 = X3; ret->_data.IR.Y3 = Y3;
+    ret->_data.IR.X4 = X4; ret->_data.IR.Y4 = Y4;
+
+    return ret;
+}
+
 
 + (id)triggerEventWithDeviceHandler:(OEDeviceHandler *)aDeviceHandler timestamp:(NSTimeInterval)timestamp axis:(OEHIDEventAxis)axis direction:(OEHIDEventAxisDirection)direction cookie:(NSUInteger)cookie;
 {
@@ -665,6 +753,12 @@ static CGEventSourceRef _keyboardEventSource;
         case OEHIDEventTypeTrigger :
             _data.axis.axis = usage;
             return YES;
+        case OEHIDEventTypeAccelerometer :
+            _data.accelerometer.accelerometer = usage;
+            return YES;
+        case OEHIDEventTypeIR :
+            _data.IR.IR = usage;
+            return YES;
         case OEHIDEventTypeHatSwitch :
             _data.hatSwitch.hatSwitchType = _OEHIDElementHatSwitchType(anElement);
             return _data.hatSwitch.hatSwitchType != OEHIDEventHatSwitchTypeUnknown;
@@ -730,6 +824,10 @@ static CGEventSourceRef _keyboardEventSource;
             _data.axis.direction = (_OEFloatEqual(scaledValue, 0.0) ? OEHIDEventAxisDirectionNull : OEHIDEventAxisDirectionPositive);
         }
             break;
+        case OEHIDEventTypeAccelerometer :
+        case OEHIDEventTypeIR :
+            break;
+
         case OEHIDEventTypeHatSwitch :
         {
             NSInteger min = IOHIDElementGetLogicalMin(elem);
@@ -800,11 +898,13 @@ static CGEventSourceRef _keyboardEventSource;
 {
     switch([self type])
     {
-        case OEHIDEventTypeAxis      :
-        case OEHIDEventTypeTrigger   : return [self axis];
-        case OEHIDEventTypeHatSwitch : return kHIDUsage_GD_Hatswitch;
-        case OEHIDEventTypeButton    : return [self buttonNumber];
-        case OEHIDEventTypeKeyboard  : return [self keycode];
+        case OEHIDEventTypeAxis          :
+        case OEHIDEventTypeTrigger       : return [self axis];
+        case OEHIDEventTypeHatSwitch     : return kHIDUsage_GD_Hatswitch;
+        case OEHIDEventTypeButton        : return [self buttonNumber];
+        case OEHIDEventTypeKeyboard      : return [self keycode];
+        case OEHIDEventTypeAccelerometer : return [self accelerometer];
+        case OEHIDEventTypeIR            : return [self IR];
     }
 
     return 0;
@@ -833,6 +933,19 @@ static CGEventSourceRef _keyboardEventSource;
     return _data.axis.axis;
 }
 
+- (OEHIDEventAccelerometer)accelerometer
+{
+    OEHIDEventType type = [self type];
+    NSAssert1(type == OEHIDEventTypeAccelerometer || type == OEHIDEventTypeTrigger, @"Invalid message sent to event \"%@\"", self);
+    return _data.accelerometer.accelerometer;
+}
+
+- (OEHIDEventIR)IR
+{
+    OEHIDEventType type = [self type];
+    NSAssert1(type == OEHIDEventTypeIR || type == OEHIDEventTypeTrigger, @"Invalid message sent to event \"%@\"", self);
+    return _data.IR.IR;
+}
 - (OEHIDEventAxisDirection)direction
 {
     OEHIDEventType type = [self type];
@@ -868,6 +981,83 @@ static CGEventSourceRef _keyboardEventSource;
     OEHIDEventType type = [self type];
     NSAssert1(type == OEHIDEventTypeAxis || type == OEHIDEventTypeTrigger, @"Invalid message sent to event \"%@\"", self);
     return fabs(_data.axis.value);
+}
+
+- (CGFloat)AxisX
+{
+    OEHIDEventType type = [self type];
+    NSAssert1(type == OEHIDEventTypeAccelerometer, @"Invalid message sent to event \"%@\"", self);
+    return fabs(_data.accelerometer.axisX);
+}
+
+- (CGFloat)AxisY
+{
+    OEHIDEventType type = [self type];
+    NSAssert1(type == OEHIDEventTypeAccelerometer, @"Invalid message sent to event \"%@\"", self);
+    return fabs(_data.accelerometer.axisY);
+}
+
+- (CGFloat)AxisZ
+{
+    OEHIDEventType type = [self type];
+    NSAssert1(type == OEHIDEventTypeAccelerometer, @"Invalid message sent to event \"%@\"", self);
+    return fabs(_data.accelerometer.axisZ);
+}
+
+- (CGFloat)X1
+{
+    OEHIDEventType type = [self type];
+    NSAssert1(type == OEHIDEventTypeIR, @"Invalid message sent to event \"%@\"", self);
+    return fabs(_data.IR.X1);
+}
+
+- (CGFloat)Y1
+{
+    OEHIDEventType type = [self type];
+    NSAssert1(type == OEHIDEventTypeIR, @"Invalid message sent to event \"%@\"", self);
+    return fabs(_data.IR.Y1);
+}
+
+- (CGFloat)X2
+{
+    OEHIDEventType type = [self type];
+    NSAssert1(type == OEHIDEventTypeIR, @"Invalid message sent to event \"%@\"", self);
+    return fabs(_data.IR.X2);
+}
+
+- (CGFloat)Y2
+{
+    OEHIDEventType type = [self type];
+    NSAssert1(type == OEHIDEventTypeIR, @"Invalid message sent to event \"%@\"", self);
+    return fabs(_data.IR.Y2);
+}
+
+- (CGFloat)X3
+{
+    OEHIDEventType type = [self type];
+    NSAssert1(type == OEHIDEventTypeIR, @"Invalid message sent to event \"%@\"", self);
+    return fabs(_data.IR.X3);
+}
+
+- (CGFloat)Y3
+{
+    OEHIDEventType type = [self type];
+    NSAssert1(type == OEHIDEventTypeIR, @"Invalid message sent to event \"%@\"", self);
+    return fabs(_data.IR.Y3);
+}
+
+- (CGFloat)X4
+{
+    OEHIDEventType type = [self type];
+    NSAssert1(type == OEHIDEventTypeIR, @"Invalid message sent to event \"%@\"", self);
+    return fabs(_data.IR.X4);
+}
+
+- (CGFloat)Y4
+{
+    OEHIDEventType type = [self type];
+    NSAssert1(type == OEHIDEventTypeIR, @"Invalid message sent to event \"%@\"", self);
+    return fabs(_data.IR.Y4);
 }
 
 // Button event
@@ -1048,6 +1238,21 @@ static CGEventSourceRef _keyboardEventSource;
             return (_data.axis.direction == anObject->_data.axis.direction &&
                     _data.axis.axis      == anObject->_data.axis.axis      &&
                     _OEFloatEqual(_data.axis.value, anObject->_data.axis.value));
+        case OEHIDEventTypeAccelerometer :
+            return (_data.accelerometer.accelerometer == anObject->_data.accelerometer.accelerometer &&
+                    _data.accelerometer.axisX == anObject->_data.accelerometer.axisX &&
+                    _data.accelerometer.axisY == anObject->_data.accelerometer.axisY &&
+                    _data.accelerometer.axisZ == anObject->_data.accelerometer.axisZ );
+        case OEHIDEventTypeIR:
+            return (_data.IR.IR == anObject->_data.IR.IR &&
+                    _data.IR.X1 == anObject->_data.IR.X1 &&
+                    _data.IR.Y1 == anObject->_data.IR.Y1 &&
+                    _data.IR.X2 == anObject->_data.IR.X2 &&
+                    _data.IR.Y2 == anObject->_data.IR.Y2 &&
+                    _data.IR.X3 == anObject->_data.IR.X3 &&
+                    _data.IR.Y3 == anObject->_data.IR.Y3 &&
+                    _data.IR.X4 == anObject->_data.IR.X4 &&
+                    _data.IR.Y4 == anObject->_data.IR.Y4 );
         case OEHIDEventTypeButton :
             return (_data.button.buttonNumber == anObject->_data.button.buttonNumber &&
                     _data.button.state        == anObject->_data.button.state);
@@ -1141,6 +1346,14 @@ static CGEventSourceRef _keyboardEventSource;
             hash |= 0x8000000000000000u;
             hash |= value & 0xF;
             break;
+        case OEHIDEventTypeAccelerometer :
+            hash |= 0xA000000000000000u;
+            hash |= value & 0xF;
+            break;
+        case OEHIDEventTypeIR :
+            hash |= 0xB000000000000000u;
+            hash |= value & 0xF;
+            break;
         default :
             break;
     }
@@ -1189,6 +1402,19 @@ static NSString *OEHIDEventDeviceHandlerKey = @"OEHIDEventDeviceHandler";
 static NSString *OEHIDEventTypeKey               = @"OEHIDEventType";
 static NSString *OEHIDEventCookieKey             = @"OEHIDEventCookie";
 static NSString *OEHIDEventAxisKey               = @"OEHIDEventAxis";
+static NSString *OEHIDEventAccelerometerKey      = @"OEHIDEventAccelerometer";
+static NSString *OEHIDEventAxisXKey              = @"OEHIDEventAxisX";
+static NSString *OEHIDEventAxisYKey              = @"OEHIDEventAxisY";
+static NSString *OEHIDEventAxisZKey              = @"OEHIDEventAxisZ";
+static NSString *OEHIDEventIRKey                 = @"OEHIDEventIR";
+static NSString *OEHIDEventIRX1Key               = @"OEHIDEventIRX1";
+static NSString *OEHIDEventIRY1Key               = @"OEHIDEventIRY1";
+static NSString *OEHIDEventIRX2Key               = @"OEHIDEventIRX2";
+static NSString *OEHIDEventIRY2Key               = @"OEHIDEventIRY2";
+static NSString *OEHIDEventIRX3Key               = @"OEHIDEventIRX3";
+static NSString *OEHIDEventIRY3Key               = @"OEHIDEventIRY3";
+static NSString *OEHIDEventIRX4Key               = @"OEHIDEventIRX4";
+static NSString *OEHIDEventIRY4Key               = @"OEHIDEventIRY4";
 static NSString *OEHIDEventDirectionKey          = @"OEHIDEventDirection";
 static NSString *OEHIDEventButtonNumberKey       = @"OEHIDEventButtonNumber";
 static NSString *OEHIDEventStateKey              = @"OEHIDEventState";
@@ -1208,7 +1434,15 @@ static NSString *OEHIDEventKeycodeKey            = @"OEHIDEventKeycode";
             ret->_data.axis.axis = [dictionaryRepresentation[OEHIDEventAxisKey] unsignedIntegerValue];
             ret->_data.axis.direction = [dictionaryRepresentation[OEHIDEventDirectionKey] integerValue];
             break;
-            
+
+        case OEHIDEventTypeAccelerometer :
+            ret->_data.accelerometer.accelerometer = [dictionaryRepresentation[OEHIDEventAccelerometerKey] unsignedIntegerValue];
+            break;
+
+        case OEHIDEventTypeIR :
+            ret->_data.IR.IR = [dictionaryRepresentation[OEHIDEventIRKey] unsignedIntegerValue];
+            break;
+
         case OEHIDEventTypeButton :
             ret->_data.button.buttonNumber = [dictionaryRepresentation[OEHIDEventButtonNumberKey] unsignedIntegerValue];
             ret->_data.button.state = [dictionaryRepresentation[OEHIDEventStateKey] integerValue];
@@ -1242,6 +1476,12 @@ static NSString *OEHIDEventKeycodeKey            = @"OEHIDEventKeycode";
             representation[OEHIDEventAxisKey] = @(self.axis);
             representation[OEHIDEventDirectionKey] = @(self.direction);
             break;
+        case OEHIDEventTypeAccelerometer :
+            representation[OEHIDEventAccelerometerKey] = @(self.accelerometer);
+            break;
+        case OEHIDEventTypeIR :
+            representation[OEHIDEventIRKey] = @(self.IR);
+            break;
         case OEHIDEventTypeButton :
             representation[OEHIDEventButtonNumberKey] = @(self.buttonNumber);
             representation[OEHIDEventStateKey] = @(self.state);
@@ -1274,6 +1514,12 @@ static NSString *OEHIDEventKeycodeKey            = @"OEHIDEventKeycode";
                 _data.axis.axis               = [decoder decodeIntegerForKey:OEHIDEventAxisKey];
                 _data.axis.direction          = [decoder decodeIntegerForKey:OEHIDEventDirectionKey];
                 break;
+            case OEHIDEventTypeAccelerometer :
+                _data.accelerometer.accelerometer = [decoder decodeIntegerForKey:OEHIDEventAccelerometerKey];
+                break;
+            case OEHIDEventTypeIR :
+                _data.IR.IR                   = [decoder decodeIntegerForKey:OEHIDEventIRKey];
+                break;
             case OEHIDEventTypeButton :
                 _data.button.buttonNumber     = [decoder decodeIntegerForKey:OEHIDEventButtonNumberKey];
                 _data.button.state            = [decoder decodeIntegerForKey:OEHIDEventStateKey];
@@ -1305,6 +1551,12 @@ static NSString *OEHIDEventKeycodeKey            = @"OEHIDEventKeycode";
         case OEHIDEventTypeTrigger :
             [encoder encodeInteger:[self axis]          forKey:OEHIDEventAxisKey];
             [encoder encodeInteger:[self direction]     forKey:OEHIDEventDirectionKey];
+            break;
+        case OEHIDEventTypeAccelerometer :
+            [encoder encodeInteger:[self accelerometer] forKey:OEHIDEventAccelerometerKey];
+            break;
+        case OEHIDEventTypeIR :
+            [encoder encodeInteger:[self IR]            forKey:OEHIDEventIRKey];
             break;
         case OEHIDEventTypeButton :
             [encoder encodeInteger:[self buttonNumber]  forKey:OEHIDEventButtonNumberKey];
