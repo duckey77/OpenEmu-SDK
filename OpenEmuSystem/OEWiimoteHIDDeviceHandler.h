@@ -48,6 +48,18 @@ typedef enum {
 } OEWiimoteExpansionType;
 
 typedef enum {
+    OEWiimoteReportTypeCoreButtons = 0x30,
+    OEWiimoteReportTypeCoreAccel = 0x31,
+    OEWiimoteReportTypeCore8Expan = 0x32,
+    OEWiimoteReportTypeCoreAccel12IR = 0x33,
+    OEWiimoteReportTypeCore19Expan = 0x34,
+    OEWiimoteReportTypeCoreAccel16Expan = 0x35,
+    OEWiimoteReportTypeCore10IR9Expan = 0x36,
+    OEWiimoteReportTypeCoreAccel10IR6Expan =0x37,
+    OEWiimoteReportType21Expan = 0x3d,
+} OEWiimoteReportType;
+
+typedef enum {
     OEWiimoteIRModeBasic    = 0x01,
     OEWiimoteIRModeExtended = 0x03,
     OEWiimoteIRModeFull     = 0x05,

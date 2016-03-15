@@ -277,6 +277,8 @@ static void OE_wiimoteIOHIDReportCallback(void            *context,
     uint8_t _reportBuffer[128];
     OEWiimoteExpansionType _expansionType;
     OEExpansionInitializationStep _expansionInitilization;
+    OEWiimoteReportType _reportType;
+
     struct {
         uint16_t wiimote;
         uint8_t  nunchuck;
@@ -334,6 +336,9 @@ static void OE_wiimoteIOHIDReportCallback(void            *context,
 
     IOHIDDeviceRegisterInputReportCallback([self device], _reportBuffer, 128, OE_wiimoteIOHIDReportCallback, (__bridge void *)self);
     [self OE_requestStatus];
+    usleep(50000);
+    [self OE_enableIRcamera];
+    usleep(50000);
     [self OE_configureReportType];
     [self OE_synchronizeRumbleAndLEDStatus];
 
@@ -475,19 +480,72 @@ enum {
     if(response[1] != 0x3D && _expansionType != OEWiimoteExpansionTypeWiiUProController)
         [self OE_parseWiimoteButtonData:(response[2] << 8 | response[3])];
 
-    if(!_expansionPortEnabled || !_expansionPortAttached) return;
+    //if(!_expansionPortEnabled || !_expansionPortAttached) return;
 
     switch(response[1])
     {
         // Right now, we should only get type 0x34; set in OE_configureReportType
-        case 0x32 :
-        case 0x34 : [self OE_handleExpansionReportData:response +  4 length:length -  4]; break;
-        case 0x35 : [self OE_handleExpansionReportData:response +  7 length:length -  7]; break;
-        case 0x36 : [self OE_handleExpansionReportData:response + 14 length:length - 14]; break;
-        case 0x37 : [self OE_handleExpansionReportData:response + 17 length:length - 17]; break;
-        case 0x3D : [self OE_handleExpansionReportData:response +  2 length:length -  2]; break;
+        case OEWiimoteReportTypeCoreButtons : break;
+        case OEWiimoteReportTypeCoreAccel :
+            [self OE_handleAccelReportData:response +  2 length:length -  2];
+            break;
+        case OEWiimoteReportTypeCoreAccel12IR :
+            [self OE_handleAccelReportData:response +  2 length:length -  2];
+            [self OE_handleIRReportData:response +  7 length:length -  7];
+            break;
+        case OEWiimoteReportTypeCore8Expan :
+        case OEWiimoteReportTypeCore19Expan :
+            [self OE_handleExpansionReportData:response +  4 length:length -  4];
+            break;
+        case OEWiimoteReportTypeCoreAccel16Expan :
+            [self OE_handleAccelReportData:response +  2 length:length -  2];
+            [self OE_handleExpansionReportData:response +  7 length:length -  7];
+            break;
+        case OEWiimoteReportTypeCore10IR9Expan :
+            [self OE_handleIRReportData:response +  4 length:length -  4];
+            [self OE_handleExpansionReportData:response + 14 length:length - 14];
+            break;
+        case OEWiimoteReportTypeCoreAccel10IR6Expan :
+            [self OE_handleAccelReportData:response +  2 length:length -  2];
+            [self OE_handleIRReportData:response +  7 length:length -  7];
+            [self OE_handleExpansionReportData:response + 17 length:length - 17];
+            break;
+        case OEWiimoteReportType21Expan : [self OE_handleExpansionReportData:response +  2 length:length -  2]; break;
         case 0x22 : NSLog(@"Ack %#x, Error: %#x", response[4], response[5]);              break;
     }
+}
+
+- (void)OE_handleAccelReportData:(const uint8_t *)data length:(NSUInteger)length;
+{
+    NSTimeInterval timestamp = [[NSDate date] timeIntervalSince1970];
+
+    float AccelX = data[2] << 2 | ((data[0] >> 4) & 0x03) ;  //byte 2 plus bits 6,5 from byte 0
+    float AccelY = data[3] << 2 | (((data[1] >> 4) & 0x01) << 1);  //byte 3 plus bit 5 from byte 1
+    float AccelZ = data[4] << 2 | (((data[1] >> 5) & 0x01) << 1);  //byte 4 plus bit 6 from byte 1
+
+    //Got the Accelerometer data, just need to do something with it....
+    [self OE_dispatchAccelerometerEvent:OEHIDEventAccelerometerWiimote axisX:AccelX axisY:AccelY axisZ:AccelZ timestamp:timestamp cookie:OEHIDEventAccelerometerWiimote];
+}
+
+- (void)OE_handleIRReportData:(const uint8_t *)data length:(NSUInteger)length;
+{
+    NSTimeInterval timestamp = [[NSDate date] timeIntervalSince1970];
+
+    float IRd1x = 1023 - (data[0] | ((data[2] & 0x30) << 4));
+    float IRd1y = data[1] | ((data[2] & 0xC0) << 2);
+
+    float IRd2x = 1023 - (data[3] | ((data[2] & 0x03) << 8));
+    float IRd2y =  data[4] | ((data[2] & 0x0C) << 6);
+
+    float IRd3x =  1023 - (data[5] | ((data[7] & 0x30) << 4));
+    float IRd3y = data[6] | ((data[7] & 0xC0) << 2);
+
+    float IRd4x = 1023 - (data[8] | ((data[7] & 0x03) << 8));
+    float IRd4y = data[9] | ((data[7] & 0x0C) << 6);
+
+
+    // Got IR data!  Now what?
+    [self OE_dispatchIREvent:OEHIDEventIRWiimote X1:IRd1x Y1:IRd1y X2:IRd2x Y2:IRd2y X3:IRd3x Y3:IRd3y X4:IRd4x Y4:IRd4y timestamp:timestamp cookie:OEHIDEventIRWiimote];
 }
 
 - (void)OE_handleExpansionReportData:(const uint8_t *)data length:(NSUInteger)length;
@@ -498,6 +556,7 @@ enum {
     {
         case OEWiimoteExpansionTypeNunchuck :
             [self OE_parseNunchuckButtonData:data[5]];
+            [self OE_parseNunchuckAccelData:data];
             [self OE_parseNunchuckJoystickXData:data[0] yData:data[1]];
             break;
         case OEWiimoteExpansionTypeClassicController :
@@ -582,11 +641,24 @@ enum {
 
 #pragma mark - Status request methods
 
-- (void)OE_configureReportType;
+- (void)OE_configureReportType
 {
-	// Set the report type the Wiimote should send.
+	// Set the report type the Wiimote should send.  0x37 for IR and Accelerometer
     // Buttons + 19 Extension bytes
-    [self OE_sendCommandWithData:(const uint8_t[]){ 0x12, 0x02, 0x34 } length:3];
+    [self OE_sendCommandWithData:(const uint8_t[]){ 0x12, 0x02, 0x37 } length:3];
+}
+
+- (void) OE_enableIRcamera
+{
+    [self OE_sendCommandWithData:(const uint8_t[]){ 0x13, 0x04 } length:2];
+    [self OE_sendCommandWithData:(const uint8_t[]){ 0x1a, 0x04 } length:2];
+    [self OE_writeData:&(uint8_t){ 0x08 } length:1 atAddress:0x04b00030];
+    usleep (50000);
+    [self OE_writeData:(const uint8_t[]){ 0x02, 0x00, 0x00, 0x71, 0x01, 0x00, 0xaa, 0x00, 0x64 } length:9 atAddress:0x04b00000];
+    [self OE_writeData:(const uint8_t[]){ 0x63, 0x03 } length:2 atAddress: 0x04b0001a];
+    usleep (50000);
+    [self OE_writeData:&(uint8_t){ 0x01 } length:1 atAddress: 0x04b00033];
+
 }
 
 - (void)OE_disableReports
@@ -661,6 +733,19 @@ enum {
         if(changes & identifier)
             [self OE_dispatchButtonEventWithUsage:usage state:(data & identifier ? OEHIDEventStateOn : OEHIDEventStateOff) timestamp:timestamp cookie:usage];
     });
+}
+
+- (void)OE_parseNunchuckAccelData:(const uint8_t *)data;
+{
+    NSTimeInterval timestamp = [[NSDate date] timeIntervalSince1970];
+
+    float AccelX = ((data[5] >> 2) & 0x03) | data[2] << 2;  // byte 5 bits 2,3
+    float AccelY = ((data[5] >> 4) & 0x03) | data[3] << 2;  // byte 5 bits 4,5
+    float AccelZ = ((data[5] >> 6) & 0x03) | data[4] << 2;  // byte 5 bits 6,7
+
+    //Got the Accelerometer data, just need to do something with it....
+
+    [self OE_dispatchAccelerometerEvent:OEHIDEventAccelerometerNunchuck axisX:AccelX axisY:AccelY axisZ:AccelZ timestamp:timestamp cookie:OEHIDEventAccelerometerNunchuck];
 }
 
 - (void)OE_parseNunchuckButtonData:(uint8_t)data;
@@ -873,6 +958,16 @@ enum {
 - (void)OE_dispatchAxisEventWithAxis:(OEHIDEventAxis)axis minimum:(NSInteger)minimum value:(NSInteger)value maximum:(NSInteger)maximum timestamp:(NSTimeInterval)timestamp cookie:(NSUInteger)cookie;
 {
     [self dispatchEvent:[OEHIDEvent axisEventWithDeviceHandler:self timestamp:timestamp axis:axis minimum:minimum value:value maximum:maximum cookie:cookie]];
+}
+
+- (void)OE_dispatchAccelerometerEvent:(OEHIDEventAccelerometer)accelerometer axisX:(NSInteger)axisX axisY:(NSInteger)axisY axisZ:(NSInteger)axisZ timestamp:(NSTimeInterval)timestamp cookie:(NSUInteger)cookie;
+{
+    [self dispatchEvent:[OEHIDEvent accelerometerEventWithDeviceHandler:self timestamp:timestamp accelerometer:accelerometer axisX:axisX axisY:axisY axisZ:axisZ cookie:cookie]];
+}
+
+- (void)OE_dispatchIREvent:(OEHIDEventIR)IR X1:(NSInteger)X1 Y1:(NSInteger)Y1 X2:(NSInteger)X2 Y2:(NSInteger)Y2 X3:(NSInteger)X3 Y3:(NSInteger)Y3 X4:(NSInteger)X4 Y4:(NSInteger)Y4 timestamp:(NSTimeInterval)timestamp cookie:(NSUInteger)cookie;
+{
+    [self dispatchEvent:[OEHIDEvent irEventWithDeviceHandler:self timestamp:timestamp IR:IR X1:X1 Y1:Y1 X2:X2 Y2:Y2 X3:X3 Y3:Y3 X4:X4 Y4:Y4 cookie:cookie]];
 }
 
 - (void)OE_dispatchTriggerEventWithAxis:(OEHIDEventAxis)axis value:(NSInteger)value maximum:(NSInteger)maximum timestamp:(NSTimeInterval)timestamp cookie:(NSUInteger)cookie;
