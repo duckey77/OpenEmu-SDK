@@ -407,8 +407,13 @@ OE_EXPORTED_CLASS
 
 - (NSTrackingAreaOptions)mouseTrackingOptions;
 
+
 - (NSSize)outputSize;
 - (void)setRandomByte;
+
+#pragma mark - Volume - Optional
+
+-(void)setVolume:(CGFloat)volume;
 
 #pragma mark - Save state - Optional
 
