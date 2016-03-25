@@ -47,6 +47,9 @@ static dispatch_queue_t oehid_queue;
             case OEHIDEventTypeIR :
                 [self IRMoved:anEvent];
                 break;
+            case OEHIDEventTypeWiimoteExtension :
+                [self wiimoteExtensionChanged:anEvent];
+                break;
             case OEHIDEventTypeTrigger :
                 if([anEvent hasOffState])
                     [self triggerRelease:anEvent];
@@ -84,6 +87,7 @@ static dispatch_queue_t oehid_queue;
 FORWARD_MESSAGE(axisMoved, OEHIDEvent *)
 FORWARD_MESSAGE(accelerometerMoved , OEHIDEvent *)
 FORWARD_MESSAGE(IRMoved , OEHIDEvent *)
+FORWARD_MESSAGE(wiimoteExtensionChanged , OEHIDEvent *)
 FORWARD_MESSAGE(triggerPull, OEHIDEvent *)
 FORWARD_MESSAGE(triggerRelease, OEHIDEvent *)
 FORWARD_MESSAGE(buttonDown, OEHIDEvent *)

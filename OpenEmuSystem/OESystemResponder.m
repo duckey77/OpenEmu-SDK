@@ -156,9 +156,15 @@ static inline void _OEBasicSystemResponderChangeAccelerometerSystem(OESystemResp
     [self changeAccelerometerEmulatorValue:key valueX:valueX valueY:valueY valueZ:valueZ];
 }
 
-static inline void _OEBasicSystemResponderChangeIRSystem(OESystemResponder *self, OESystemKey *key, CGFloat X1, CGFloat Y1, CGFloat X2, CGFloat Y2, CGFloat X3, CGFloat Y3, CGFloat X4, CGFloat Y4)
+static inline void _OEBasicSystemResponderChangeIRSystem(OESystemResponder *self, OESystemKey *key, wiimoteIR IRinfo)
 {
-    [self changeIREmulatorValue:key X1:X1 Y1:Y1 X2:X2 Y2:Y2 X3:X3 Y3:Y3 X4:X4 Y4:Y4];
+    
+    [self changeIREmulatorValue:key IRinfo:IRinfo];
+}
+
+static inline void _OEBasicSystemResponderChangeWiimoteExtensionSystem(OESystemResponder *self, OESystemKey *key, NSInteger extensionType)
+{
+    [self changeWiimoteExtensionValue:key extensionType:extensionType];
 }
 
 - (OESystemKey *)emulatorKeyForKey:(OEKeyBindingDescription *)aKey player:(NSUInteger)thePlayer;
@@ -186,9 +192,14 @@ static inline void _OEBasicSystemResponderChangeIRSystem(OESystemResponder *self
     //[self doesNotImplementSelector:_cmd];
 }
 
-- (void)changeIREmulatorValue:(OESystemKey *)aKey X1:(CGFloat)X1 Y1:(CGFloat)Y1 X2:(CGFloat)X2 Y2:(CGFloat)Y2 X3:(CGFloat)X3 Y3:(CGFloat)Y3 X4:(CGFloat)X4 Y4:(CGFloat)Y4
+- (void)changeIREmulatorValue:(OESystemKey *)aKey IRinfo:(wiimoteIR)IRinfo
 {
     //[self doesNotImplementSelector:_cmd];
+}
+
+- (void) changeWiimoteExtensionValue:(OESystemKey *)aKey extensionType:(NSInteger)extensionType
+{
+     //[self doesNotImplementSelector:_cmd];
 }
 
 - (void)pressGlobalButtonWithIdentifier:(OEGlobalButtonIdentifier)identifier;
@@ -517,16 +528,29 @@ static void * __nonnull _OEJoystickStateKeyForEvent(OEHIDEvent *anEvent)
 
 - (void)accelerometerMoved:(OEHIDEvent *)anEvent
 {
-    OESystemKey *key = [_keyMap systemKeyForEvent:anEvent];
+    OESystemKey *key = [OESystemKey alloc];
 
+    key.key = [anEvent accelType];
+    key.player = [anEvent accelUnit];
     _OEBasicSystemResponderChangeAccelerometerSystem(self, key, [anEvent AxisX],[anEvent AxisY], [anEvent AxisZ]);
 }
 
 - (void)IRMoved:(OEHIDEvent *)anEvent
 {
-    OESystemKey *key = [_keyMap systemKeyForEvent:anEvent];
+    OESystemKey *key = [OESystemKey alloc];
 
-    _OEBasicSystemResponderChangeIRSystem(self, key, [anEvent X1], [anEvent Y1], [anEvent X2], [anEvent Y2],[anEvent X3], [anEvent Y3],[anEvent X4], [anEvent Y4]);
+    key.player = [anEvent irUnit];
+
+    _OEBasicSystemResponderChangeIRSystem(self, key, [anEvent IRinfo]);
+}
+
+- (void)wiimoteExtensionChanged:(OEHIDEvent *)anEvent
+{
+    OESystemKey *key = [OESystemKey alloc];
+
+    
+    key.player = [anEvent extensionUnit];
+    _OEBasicSystemResponderChangeWiimoteExtensionSystem(self, key, [anEvent extensionType]);
 }
 
 - (void)axisMoved:(OEHIDEvent *)anEvent

@@ -33,14 +33,15 @@
 @class OEDeviceHandler, OEHIDDeviceHandler, OEWiimoteHIDDeviceHandler;
 
 typedef enum _OEHIDEventType : NSUInteger {
-    OEHIDEventTypeAxis          = 1,
+    OEHIDEventTypeAxis              = 1,
     // Only for analogic triggers
-    OEHIDEventTypeTrigger       = 5,
-    OEHIDEventTypeButton        = 2,
-    OEHIDEventTypeHatSwitch     = 3,
-	OEHIDEventTypeKeyboard      = 4,
-    OEHIDEventTypeAccelerometer = 6,
-    OEHIDEventTypeIR            = 7,
+    OEHIDEventTypeTrigger           = 5,
+    OEHIDEventTypeButton            = 2,
+    OEHIDEventTypeHatSwitch         = 3,
+	OEHIDEventTypeKeyboard          = 4,
+    OEHIDEventTypeAccelerometer     = 6,
+    OEHIDEventTypeIR                = 7,
+    OEHIDEventTypeWiimoteExtension  = 8,
 
 } OEHIDEventType;
 
@@ -55,13 +56,21 @@ typedef enum _OEHIDAxis : NSUInteger {
 } OEHIDEventAxis;
 
 typedef enum _OEHIDAccelerometer : NSUInteger {
-    OEHIDEventAccelerometerWiimote,
-    OEHIDEventAccelerometerNunchuck
+    OEHIDEventAccelerometerWiimote   = 0,
+    OEHIDEventAccelerometerNunchuk  = 1,
 } OEHIDEventAccelerometer;
 
 typedef enum _OEHIDEventIR: NSInteger {
     OEHIDEventIRWiimote
 } OEHIDEventIR;
+
+typedef enum _OEHIDEventWiimoteExtension : NSUInteger{
+    OEHIDEventWiimoteExtensionNotConnected,
+    OEHIDEventWiimoteExtensionNunchuck,
+    OEHIDEventWiimoteExtensionClassicController,
+    OEHIDEventWiimoteExtensionWiiUProController,
+    OEHIDEventWiimoteExtensionFightingStick,
+} OEHIDEventWiimoteExtension;
 
 typedef enum _OEHIDEventAxisDirection : NSInteger {
     OEHIDEventAxisDirectionNegative = -1,
@@ -93,6 +102,13 @@ typedef enum _OEHIDEventState : NSInteger {
     OEHIDEventStateOn
 } OEHIDEventState;
 
+typedef struct _wiimoteIR
+{
+   CGFloat dX[4];
+   CGFloat dY[4];
+   CGFloat dSize[4];
+} wiimoteIR;
+
 enum {
     OEUndefinedCookie = 0ULL,
 };
@@ -115,8 +131,8 @@ extern OEHIDEventType OEHIDEventTypeFromIOHIDElement(IOHIDElementRef elem);
 + (NSUInteger)keyCodeForVirtualKey:(CGCharCode)charCode;
 + (instancetype)eventWithDeviceHandler:(OEDeviceHandler *)aDeviceHandler value:(IOHIDValueRef)aValue;
 + (instancetype)axisEventWithDeviceHandler:(OEDeviceHandler *)aDeviceHandler timestamp:(NSTimeInterval)timestamp axis:(OEHIDEventAxis)axis direction:(OEHIDEventAxisDirection)direction cookie:(NSUInteger)cookie;
-+ (instancetype)accelerometerEventWithDeviceHandler:(OEDeviceHandler *)aDeviceHandler timestamp:(NSTimeInterval)timestamp accelerometer:(OEHIDEventAccelerometer)accelerometer axisX:(NSInteger)axisX axisY:(NSInteger)axisY axisZ:(NSInteger)axisZ cookie:(NSUInteger)cookie;
-+ (instancetype)irEventWithDeviceHandler:(OEDeviceHandler *)aDeviceHandler timestamp:(NSTimeInterval)timestamp IR:(OEHIDEventIR)IR X1:(NSInteger)X1 Y1:(NSInteger)Y1 X2:(NSInteger)X2 Y2:(NSInteger)Y2 X3:(NSInteger)X3 Y3:(NSInteger)Y3 X4:(NSInteger)X4 Y4:(NSInteger)Y4 cookie:(NSInteger)cookie;
++ (instancetype)accelerometerEventWithDeviceHandler:(OEDeviceHandler *)aDeviceHandler timestamp:(NSTimeInterval)timestamp accelerometer:(OEHIDEventAccelerometer)accelerometer axisX:(NSInteger)axisX axisY:(NSInteger)axisY axisZ:(NSInteger)axisZ devNum:(NSInteger)devNum cookie:(NSUInteger)cookie;
++ (instancetype)irEventWithDeviceHandler:(OEDeviceHandler *)aDeviceHandler timestamp:(NSTimeInterval)timestamp IR:(OEHIDEventIR)IR IRinfo:(wiimoteIR)IRinfo devNum:(NSInteger)devNum  cookie:(NSInteger)cookie;
 + (instancetype)axisEventWithDeviceHandler:(OEDeviceHandler *)aDeviceHandler timestamp:(NSTimeInterval)timestamp axis:(OEHIDEventAxis)axis value:(CGFloat)value cookie:(NSUInteger)cookie;
 + (instancetype)axisEventWithDeviceHandler:(OEDeviceHandler *)aDeviceHandler timestamp:(NSTimeInterval)timestamp axis:(OEHIDEventAxis)axis minimum:(NSInteger)minimum value:(NSInteger)value maximum:(NSInteger)maximum cookie:(NSUInteger)cookie;
 + (instancetype)triggerEventWithDeviceHandler:(OEDeviceHandler *)aDeviceHandler timestamp:(NSTimeInterval)timestamp axis:(OEHIDEventAxis)axis direction:(OEHIDEventAxisDirection)direction cookie:(NSUInteger)cookie;
@@ -125,6 +141,7 @@ extern OEHIDEventType OEHIDEventTypeFromIOHIDElement(IOHIDElementRef elem);
 + (instancetype)buttonEventWithDeviceHandler:(OEDeviceHandler *)aDeviceHandler timestamp:(NSTimeInterval)timestamp buttonNumber:(NSUInteger)number state:(OEHIDEventState)state cookie:(NSUInteger)cookie;
 + (instancetype)hatSwitchEventWithDeviceHandler:(OEDeviceHandler *)aDeviceHandler timestamp:(NSTimeInterval)timestamp type:(OEHIDEventHatSwitchType)hatSwitchType direction:(OEHIDEventHatDirection)aDirection cookie:(NSUInteger)cookie;
 + (instancetype)keyEventWithTimestamp:(NSTimeInterval)timestamp keyCode:(NSUInteger)keyCode state:(OEHIDEventState)state cookie:(NSUInteger)cookie;
++ (instancetype)WiimoteExtensionEventWithDeviceHandler:(OEDeviceHandler *)aDeviceHandler timestamp:(NSTimeInterval)timestamp Extension:(OEHIDEventWiimoteExtension)Extension ExtensionType:(NSInteger)ExtensionType devNum:(NSInteger)devNum cookie:(NSInteger)cookie;
 
 @property(readonly) __kindof OEDeviceHandler *deviceHandler;
 @property(readonly) BOOL hasDeviceHandlerPlaceholder;
@@ -143,18 +160,20 @@ extern OEHIDEventType OEHIDEventTypeFromIOHIDElement(IOHIDElementRef elem);
 @property(readonly) CGFloat                 value;             // Axis and Trigger
 @property(readonly) CGFloat                 absoluteValue;     // Axis and Trigger
 
+//Accelerometer
 @property(readonly) CGFloat                 AxisX;
 @property(readonly) CGFloat                 AxisY;
 @property(readonly) CGFloat                 AxisZ;
+@property(readonly) NSInteger               accelUnit;
+@property(readonly) NSInteger               accelType;
 
-@property(readonly) CGFloat                 X1;
-@property(readonly) CGFloat                 Y1;
-@property(readonly) CGFloat                 X2;
-@property(readonly) CGFloat                 Y2;
-@property(readonly) CGFloat                 X3;
-@property(readonly) CGFloat                 Y3;
-@property(readonly) CGFloat                 X4;
-@property(readonly) CGFloat                 Y4;
+//IR
+@property(readonly) wiimoteIR        IRinfo;
+@property(readonly) NSInteger               irUnit;
+
+//Wiimote Extension Port
+@property(readonly) NSInteger               extensionType;
+@property(readonly) NSInteger               extensionUnit;
 
 // Button event
 @property(readonly) NSUInteger              buttonNumber;

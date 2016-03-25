@@ -38,13 +38,13 @@ typedef enum : unsigned char {
 } OEWiimoteDeviceHandlerLED;
 
 typedef enum {
-    OEWiimoteExpansionTypeUnknown,
+    OEWiimoteExpansionTypeNotConnected,
     OEWiimoteExpansionTypeNunchuck,
     OEWiimoteExpansionTypeClassicController,
     OEWiimoteExpansionTypeWiiUProController,
     OEWiimoteExpansionTypeFightingStick,
 
-    OEWiimoteExpansionTypeNotConnected,
+    OEWiimoteExpansionTypeUnknown
 } OEWiimoteExpansionType;
 
 typedef enum {
