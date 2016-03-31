@@ -158,7 +158,7 @@ static inline void _OEBasicSystemResponderChangeAccelerometerSystem(OESystemResp
 
 static inline void _OEBasicSystemResponderChangeIRSystem(OESystemResponder *self, OESystemKey *key, wiimoteIR IRinfo)
 {
-    
+
     [self changeIREmulatorValue:key IRinfo:IRinfo];
 }
 
@@ -189,17 +189,17 @@ static inline void _OEBasicSystemResponderChangeWiimoteExtensionSystem(OESystemR
 
 - (void)changeAccelerometerEmulatorValue:(OESystemKey *)aKey valueX:(CGFloat)valueX valueY:(CGFloat)valueY valueZ:(CGFloat)valueZ
 {
-    //[self doesNotImplementSelector:_cmd];
+    //Optional
 }
 
 - (void)changeIREmulatorValue:(OESystemKey *)aKey IRinfo:(wiimoteIR)IRinfo
 {
-    //[self doesNotImplementSelector:_cmd];
+    //Optional
 }
 
 - (void) changeWiimoteExtensionValue:(OESystemKey *)aKey extensionType:(NSInteger)extensionType
 {
-     //[self doesNotImplementSelector:_cmd];
+    //[Optional
 }
 
 - (void)pressGlobalButtonWithIdentifier:(OEGlobalButtonIdentifier)identifier;
@@ -548,7 +548,7 @@ static void * __nonnull _OEJoystickStateKeyForEvent(OEHIDEvent *anEvent)
 {
     OESystemKey *key = [OESystemKey alloc];
 
-    
+
     key.player = [anEvent extensionUnit];
     _OEBasicSystemResponderChangeWiimoteExtensionSystem(self, key, [anEvent extensionType]);
 }

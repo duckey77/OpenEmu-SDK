@@ -96,5 +96,4 @@ FORWARD_MESSAGE(hatSwitchChanged, OEHIDEvent *)
 FORWARD_MESSAGE(HIDKeyDown, OEHIDEvent *)
 FORWARD_MESSAGE(HIDKeyUp, OEHIDEvent *)
 
-
 @end

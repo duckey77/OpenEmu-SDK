@@ -175,6 +175,7 @@ typedef enum {
     OEWiimoteExpansionIdentifierMotionPlusClassic = 0x0705,
 } OEWiimoteExpansionIdentifier;
 
+
 typedef enum {
     OEExpansionInitializationStepNone,
     OEExpansionInitializationStepWriteOne,
@@ -286,9 +287,6 @@ static void OE_wiimoteIOHIDReportCallback(void            *context,
     uint8_t _reportBuffer[128];
     OEWiimoteExpansionType _expansionType;
     OEExpansionInitializationStep _expansionInitilization;
-    OEWiimoteReportType _reportType;
-
-
     struct {
         uint16_t wiimote;
         uint8_t  nunchuck;
@@ -482,8 +480,6 @@ enum {
 
 - (void)OE_handleStatusReportData:(const uint8_t *)response length:(NSUInteger)length;
 {
-    NSTimeInterval timestamp = [[NSDate date] timeIntervalSince1970];
-
     if(!_statusReportRequested) [self OE_configureReportType];
     else _statusReportRequested = NO;
 
@@ -498,17 +494,12 @@ enum {
 
     if(response[4] & 0x2 && !_expansionPortAttached)
     {
-        _expansionType = OEWiimoteExpansionTypeNotConnected;
+        _expansionType = OEWiimoteExpansionTypeUnknown;
         _expansionInitilization = OEExpansionInitializationStepWriteOne;
         [self OE_readExpansionPortType];
     }
     else if(((response[4] & 0x2) == 0) && _expansionPortAttached)
-    {
         _expansionPortAttached = NO;
-        _expansionType = OEWiimoteExpansionTypeNotConnected;
-
-        [self OE_dispatchWiimoteExtensionEvent:(OEHIDEventWiimoteExtension)_expansionType ExtensionType:_expansionType devNum:[self deviceNumber] timestamp:timestamp cookie:(OEHIDEventWiimoteExtension)_expansionType];
-    }
 
     [self OE_checkBatteryLevel];
 }
@@ -518,11 +509,11 @@ enum {
     if(response[1] != 0x3D && _expansionType != OEWiimoteExpansionTypeWiiUProController)
         [self OE_parseWiimoteButtonData:(response[2] << 8 | response[3])];
 
-   // if(!_expansionPortEnabled || !_expansionPortAttached) return;
+    // if(!_expansionPortEnabled || !_expansionPortAttached) return;
 
     switch(response[1])
     {
-        // Right now, we should only get type 0x37; set in OE_configureReportType
+            // Right now, we should only get type 0x37; set in OE_configureReportType
         case OEWiimoteReportTypeCoreButtons : break;
         case OEWiimoteReportTypeCoreAccel :
             [self OE_handleAccelReportData:response +  2 length:length -  2];
@@ -553,62 +544,6 @@ enum {
     }
 }
 
-- (void)OE_handleAccelReportData:(const uint8_t *)data length:(NSUInteger)length;
-{
-    NSTimeInterval timestamp = [[NSDate date] timeIntervalSince1970];
-
-    uint16_t AccelData = data[2] << 16 | data[3] << 8 | data[4];
-    uint16_t changes = AccelData ^ _latestAcellerometerReport.wiimote;
-    _latestAcellerometerReport.wiimote = AccelData;
-
-    if (changes) {
-        float AccelX = data[2] ;
-        float AccelY = data[3] ;
-        float AccelZ = data[4] ;
-
-        [self OE_dispatchAccelerometerEvent:OEHIDEventAccelerometerWiimote axisX:AccelX axisY:AccelY axisZ:AccelZ devNum:[self deviceNumber] timestamp:timestamp cookie:OEHIDEventAccelerometerWiimote];
-    }
-}
-
-- (void)OE_handleIRReportData:(const uint8_t *)data length:(NSUInteger)length mode:(OEWiimoteIRMode)mode;
-{
-
-
-    NSTimeInterval timestamp = [[NSDate date] timeIntervalSince1970];
-
-    switch (mode)
-    {
-        wiimoteIR IRinfo;
-
-        case OEWiimoteIRModeBasic:
-        {
-            IRinfo.dX[0] = data[0] | ((data[2] & 0x30) << 4);
-            IRinfo.dY[0] = data[1] | ((data[2] & 0xC0) << 2);
-
-            IRinfo.dX[1] = data[3] | ((data[2] & 0x03) << 8);
-            IRinfo.dY[1] = data[4] | ((data[2] & 0x0C) << 6);
-
-            IRinfo.dX[2] = data[5] | ((data[7] & 0x30) << 4);
-            IRinfo.dY[2] = data[6] | ((data[7] & 0xC0) << 2);
-
-            IRinfo.dX[3] = data[8] | ((data[7] & 0x03) << 8);
-            IRinfo.dY[3] = data[9] | ((data[7] & 0x0C) << 6);
-        }
-
-            [self OE_dispatchIREvent:OEHIDEventIRWiimote IRinfo:IRinfo timestamp:timestamp devNum:[self deviceNumber] cookie:OEHIDEventIRWiimote];
-
-            break;
-        case OEWiimoteIRModeExtended:
-        {
-
-        }
-            break;
-        case OEWiimoteIRModeFull:
-            break;
-
-    }
-    // Got IR data!  Now what?
-   }
 
 - (void)OE_handleExpansionReportData:(const uint8_t *)data length:(NSUInteger)length;
 {
@@ -636,7 +571,7 @@ enum {
         default:
             break;
     }
-	
+
     if(length > 10)
     {
         _batteryLevel = (data[10] & 0x70) >> 4;
@@ -710,11 +645,71 @@ enum {
     }
 }
 
+- (void)OE_handleAccelReportData:(const uint8_t *)data length:(NSUInteger)length;
+{
+    NSTimeInterval timestamp = [[NSDate date] timeIntervalSince1970];
+
+    uint16_t AccelData = data[2] << 16 | data[3] << 8 | data[4];
+    uint16_t changes = AccelData ^ _latestAcellerometerReport.wiimote;
+    _latestAcellerometerReport.wiimote = AccelData;
+
+    if (changes) {
+        float AccelX = data[2] ;
+        float AccelY = data[3] ;
+        float AccelZ = data[4] ;
+
+        [self OE_dispatchAccelerometerEvent:OEHIDEventAccelerometerWiimote axisX:AccelX axisY:AccelY axisZ:AccelZ devNum:[self deviceNumber] timestamp:timestamp cookie:OEHIDEventAccelerometerWiimote];
+    }
+}
+
+- (void)OE_handleIRReportData:(const uint8_t *)data length:(NSUInteger)length mode:(OEWiimoteIRMode)mode;
+{
+
+
+    NSTimeInterval timestamp = [[NSDate date] timeIntervalSince1970];
+
+    switch (mode)
+    {
+            wiimoteIR IRinfo;
+
+        case OEWiimoteIRModeBasic:
+        {
+            IRinfo.dX[0] = data[0] | ((data[2] & 0x30) << 4);
+            IRinfo.dY[0] = data[1] | ((data[2] & 0xC0) << 2);
+
+            IRinfo.dX[1] = data[3] | ((data[2] & 0x03) << 8);
+            IRinfo.dY[1] = data[4] | ((data[2] & 0x0C) << 6);
+
+            IRinfo.dX[2] = data[5] | ((data[7] & 0x30) << 4);
+            IRinfo.dY[2] = data[6] | ((data[7] & 0xC0) << 2);
+
+            IRinfo.dX[3] = data[8] | ((data[7] & 0x03) << 8);
+            IRinfo.dY[3] = data[9] | ((data[7] & 0x0C) << 6);
+        }
+
+            [self OE_dispatchIREvent:OEHIDEventIRWiimote IRinfo:IRinfo timestamp:timestamp devNum:[self deviceNumber] cookie:OEHIDEventIRWiimote];
+            break;
+        case OEWiimoteIRModeExtended:
+        {
+            for( int i = 0; i < 4; i++ ) {
+                IRinfo.dX[i] = (data[3 * i] | ((data[(3 * i) + 2] & 0x30) << 4));
+                IRinfo.dY[i] = data[(3 * i) + 1] | ((data[(3 * i) + 2] & 0xC0) << 2);
+                IRinfo.dSize[i] = data[(3 * i) + 2] & 0x0F;
+            }
+        }
+
+            [self OE_dispatchIREvent:OEHIDEventIRWiimote IRinfo:IRinfo timestamp:timestamp devNum:[self deviceNumber] cookie:OEHIDEventIRWiimote];
+            break;
+        case OEWiimoteIRModeFull:
+            break;
+    }
+}
+
 #pragma mark - Status request methods
 
 - (void)OE_configureReportType
 {
-	// Set the report type the Wiimote should send.  0x37 for IR and Accelerometer 0x34 for buttons and expansion
+    // Set the report type the Wiimote should send.  0x37 for IR and Accelerometer 0x34 for buttons and expansion
     // Buttons + 19 Extension bytes
     [self OE_sendCommandWithData:(const uint8_t[]){ 0x12, 0x02, OEWiimoteReportTypeCoreAccel10IR6Expan } length:3];
 }
@@ -742,7 +737,7 @@ enum {
 
     //Enable IR again
     [self OE_writeData:&(uint8_t){ 0x08 } length:1 atAddress:0x04b00030];
-
+    
 }
 
 - (void)OE_disableReports
@@ -759,10 +754,10 @@ enum {
 - (void)OE_synchronizeRumbleAndLEDStatus
 {
     NSUInteger devNumber = [self deviceNumber] + 1;
-    BOOL led1 = (devNumber == 1) || (devNumber == 5)|| (devNumber == 8);
-    BOOL led2 = (devNumber == 2) || (devNumber == 6) ;
-    BOOL led3 = (devNumber == 3) || (devNumber > 6);
-    BOOL led4 = (devNumber > 3);
+    BOOL led1 = (devNumber == 1) || (devNumber == 5);
+    BOOL led2 = (devNumber == 2) || (devNumber == 6) || (devNumber == 8);
+    BOOL led3 = (devNumber == 3) || (devNumber == 7) || (devNumber == 8);
+    BOOL led4 = (devNumber == 4) || (devNumber == 6) || (devNumber == 7) || (devNumber == 8);
     uint8_t wiimoteLEDStatus = led1 ? OEWiimoteDeviceHandlerLED1 : 0 |
                                led2 ? OEWiimoteDeviceHandlerLED2 : 0 |
                                led3 ? OEWiimoteDeviceHandlerLED3 : 0 |
@@ -792,24 +787,18 @@ enum {
     {
         case OEExpansionInitializationStepWriteOne:
             [self OE_writeData:&(uint8_t){ 0x55 } length:1 atAddress:0x04A400F0];
-            [self OE_writeData:&(uint8_t){ 0x55 } length:1 atAddress:0x04A600F0]; //motion Plus activate
             break;
         case OEExpansionInitializationStepWriteTwo:
             [self OE_writeData:&(uint8_t){ 0x00 } length:1 atAddress:0x04A400FB];
             break;
         case OEExpansionInitializationStepRead:
             [self OE_readDataOfLength:16 atAddress:0x04A400F0];
-            [self OE_readDataOfLength:6 atAddress:0x04A600FB];
             break;
         default:
             break;
     }
 }
 
-- (void)OE_probeWiimotePlus
-{
-
-}
 #pragma mark - Parse methods
 
 - (void)OE_parseWiimoteButtonData:(uint16_t)data;
@@ -822,6 +811,20 @@ enum {
     _OEWiimoteIdentifierEnumerateUsingBlock(_OEWiimoteButtonRange, ^(OEWiimoteButtonIdentifier identifier, NSUInteger usage, BOOL *stop) {
         if(changes & identifier)
             [self OE_dispatchButtonEventWithUsage:usage state:(data & identifier ? OEHIDEventStateOn : OEHIDEventStateOff) timestamp:timestamp cookie:usage];
+    });
+}
+
+- (void)OE_parseNunchuckButtonData:(uint8_t)data;
+{
+    NSTimeInterval timestamp = [[NSDate date] timeIntervalSince1970];
+
+    uint8_t changes = data ^ _latestButtonReports.nunchuck;
+    _latestButtonReports.nunchuck = data;
+
+    _OEWiimoteIdentifierEnumerateUsingBlock(_OENunchuckButtonRange, ^(OEWiimoteButtonIdentifier identifier, NSUInteger usage, BOOL *stop) {
+        // Nunchuk uses 0 bit to mean pressed
+        if(changes & identifier)
+            [self OE_dispatchButtonEventWithUsage:usage state:(data & identifier ? OEHIDEventStateOff : OEHIDEventStateOn) timestamp:timestamp cookie:usage];
     });
 }
 
@@ -840,20 +843,6 @@ enum {
 
         [self OE_dispatchAccelerometerEvent:OEHIDEventAccelerometerNunchuk axisX:AccelX axisY:AccelY axisZ:AccelZ devNum:[self deviceNumber] timestamp:timestamp cookie:OEHIDEventAccelerometerNunchuk];
     }
-}
-
-- (void)OE_parseNunchuckButtonData:(uint8_t)data;
-{
-    NSTimeInterval timestamp = [[NSDate date] timeIntervalSince1970];
-
-    uint8_t changes = data ^ _latestButtonReports.nunchuck;
-    _latestButtonReports.nunchuck = data;
-
-    _OEWiimoteIdentifierEnumerateUsingBlock(_OENunchuckButtonRange, ^(OEWiimoteButtonIdentifier identifier, NSUInteger usage, BOOL *stop) {
-        // Nunchuk uses 0 bit to mean pressed
-        if(changes & identifier)
-            [self OE_dispatchButtonEventWithUsage:usage state:(data & identifier ? OEHIDEventStateOff : OEHIDEventStateOn) timestamp:timestamp cookie:usage];
-    });
 }
 
 - (void)OE_parseNunchuckJoystickXData:(uint8_t)xData yData:(uint8_t)yData;
@@ -1068,6 +1057,8 @@ enum {
 {
     [self dispatchEvent:[OEHIDEvent WiimoteExtensionEventWithDeviceHandler:self timestamp:timestamp Extension:Extension ExtensionType:ExtensionType devNum:devNum cookie:cookie]];
 }
+
+
 - (void)OE_dispatchTriggerEventWithAxis:(OEHIDEventAxis)axis value:(NSInteger)value maximum:(NSInteger)maximum timestamp:(NSTimeInterval)timestamp cookie:(NSUInteger)cookie;
 {
     [self dispatchEvent:[OEHIDEvent triggerEventWithDeviceHandler:self timestamp:timestamp axis:axis value:value maximum:maximum cookie:cookie]];

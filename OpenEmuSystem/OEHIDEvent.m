@@ -109,11 +109,11 @@ NSString *NSStringFromOEHIDEventType(OEHIDEventType type)
 {
     switch(type)
     {
-        case OEHIDEventTypeAxis               : return @"OEHIDEventTypeAxis";
-        case OEHIDEventTypeTrigger            : return @"OEHIDEventTypeTrigger";
-        case OEHIDEventTypeButton             : return @"OEHIDEventTypeButton";
-        case OEHIDEventTypeHatSwitch          : return @"OEHIDEventTypeHatSwitch";
-        case OEHIDEventTypeKeyboard           : return @"OEHIDEventTypeKeyboard";
+        case OEHIDEventTypeAxis      : return @"OEHIDEventTypeAxis";
+        case OEHIDEventTypeTrigger   : return @"OEHIDEventTypeTrigger";
+        case OEHIDEventTypeButton    : return @"OEHIDEventTypeButton";
+        case OEHIDEventTypeHatSwitch : return @"OEHIDEventTypeHatSwitch";
+        case OEHIDEventTypeKeyboard  : return @"OEHIDEventTypeKeyboard";
         case OEHIDEventTypeIR                 : return @"OEHIDEventTypeIR";
         case OEHIDEventTypeAccelerometer      : return @"OEHIDEventTypeAccelerometer";
         case OEHIDEventTypeWiimoteExtension   : return @"OEHIDEventTypeWiimoteExtension";
@@ -203,7 +203,6 @@ NSString *NSStringFromOEHIDEventWiimoteExtension(OEHIDEventWiimoteExtension Exte
     return ret;
 }
 
-
 NSString *OEHIDEventAxisDisplayDescription(OEHIDEventAxis axis, OEHIDEventAxisDirection direction)
 {
     // Example: ret = @"P1 -X" for Pad One X axis Negative
@@ -239,6 +238,7 @@ NSString *OEHIDEventWiimoteExtensionDisplayDescription(OEHIDEventWiimoteExtensio
 
     return ret != nil ? [NSString stringWithFormat:@"%@", ret] : @"";
 }
+
 
 NSString *NSStringFromIOHIDElement(IOHIDElementRef elem)
 {
@@ -393,6 +393,7 @@ static inline BOOL _OEFloatEqual(CGFloat v1, CGFloat v2)
             NSInteger                    ExtensionType;
             NSInteger                    ExtensionUnit;
         } Extension;
+
         struct {
             NSUInteger              buttonNumber;
             OEHIDEventState         state;
@@ -514,14 +515,14 @@ static CGEventSourceRef _keyboardEventSource;
     {
         case OEHIDEventTypeAxis :
             return OEHIDEventAxisDisplayDescription(_data.axis.axis, _data.axis.direction);
+        case OEHIDEventTypeTrigger :
+            return [NSString stringWithFormat:NSLocalizedString(@"Trigger %@", @"Trigger key name with axis string."), NSStringFromOEHIDEventAxis(_data.axis.axis)];
         case OEHIDEventTypeAccelerometer :
             return OEHIDEventAccelerometerDisplayDescription(_data.accelerometer.accelerometer);
         case OEHIDEventTypeIR :
             return OEHIDEventIRDisplayDescription(_data.IR.IR);
         case OEHIDEventTypeWiimoteExtension :
             return OEHIDEventWiimoteExtensionDisplayDescription(_data.Extension.Extension);
-        case OEHIDEventTypeTrigger :
-            return [NSString stringWithFormat:NSLocalizedString(@"Trigger %@", @"Trigger key name with axis string."), NSStringFromOEHIDEventAxis(_data.axis.axis)];
         case OEHIDEventTypeHatSwitch :
             return NSLocalizedStringFromOEHIDHatDirection(_data.hatSwitch.hatDirection);
         case OEHIDEventTypeButton :
@@ -642,7 +643,6 @@ static CGEventSourceRef _keyboardEventSource;
     ret->_data.Extension.ExtensionUnit = devNum;
     return ret;
 }
-
 
 + (id)triggerEventWithDeviceHandler:(OEDeviceHandler *)aDeviceHandler timestamp:(NSTimeInterval)timestamp axis:(OEHIDEventAxis)axis direction:(OEHIDEventAxisDirection)direction cookie:(NSUInteger)cookie;
 {
@@ -873,7 +873,6 @@ static CGEventSourceRef _keyboardEventSource;
         case OEHIDEventTypeIR :
         case OEHIDEventTypeWiimoteExtension:
             break;
-
         case OEHIDEventTypeHatSwitch :
         {
             NSInteger min = IOHIDElementGetLogicalMin(elem);
@@ -944,14 +943,11 @@ static CGEventSourceRef _keyboardEventSource;
 {
     switch([self type])
     {
-        case OEHIDEventTypeAxis          :
-        case OEHIDEventTypeTrigger       : return [self axis];
-        case OEHIDEventTypeHatSwitch     : return kHIDUsage_GD_Hatswitch;
-        case OEHIDEventTypeButton        : return [self buttonNumber];
-        case OEHIDEventTypeKeyboard      : return [self keycode];
-        case OEHIDEventTypeAccelerometer : return [self accelerometer];
-        case OEHIDEventTypeIR            : return [self IR];
-        case OEHIDEventTypeWiimoteExtension : return [self extension];
+        case OEHIDEventTypeAxis      :
+        case OEHIDEventTypeTrigger   : return [self axis];
+        case OEHIDEventTypeHatSwitch : return kHIDUsage_GD_Hatswitch;
+        case OEHIDEventTypeButton    : return [self buttonNumber];
+        case OEHIDEventTypeKeyboard  : return [self keycode];
     }
 
     return 0;
@@ -1100,6 +1096,7 @@ static CGEventSourceRef _keyboardEventSource;
     NSAssert1(type == OEHIDEventTypeWiimoteExtension, @"Invalid message sent to event \"%@\"", self);
     return _data.Extension.ExtensionUnit;
 }
+
 // Button event
 - (NSUInteger)buttonNumber
 {
@@ -1353,6 +1350,18 @@ static CGEventSourceRef _keyboardEventSource;
         case OEHIDEventTypeHatSwitch :
             hash |= 0x80000000u;
             break;
+        case OEHIDEventTypeAccelerometer :
+            hash |= 0xA0000000u;
+            hash |= usage;
+            break;
+        case OEHIDEventTypeIR :
+            hash |= 0xB0000000u;
+            hash |= usage;
+            break;
+        case OEHIDEventTypeWiimoteExtension :
+            hash |= 0xC0000000u;
+            hash |= usage;
+            break;
     }
 
     return hash;
@@ -1443,19 +1452,14 @@ static CGEventSourceRef _keyboardEventSource;
     return YES;
 }
 
-static NSString *OEHIDEventDeviceHandlerKey      = @"OEHIDEventDeviceHandler";
+static NSString *OEHIDEventDeviceHandlerKey = @"OEHIDEventDeviceHandler";
 static NSString *OEHIDEventTypeKey               = @"OEHIDEventType";
 static NSString *OEHIDEventCookieKey             = @"OEHIDEventCookie";
 static NSString *OEHIDEventAxisKey               = @"OEHIDEventAxis";
-static NSString *OEHIDEventAccelerometerKey      = @"OEHIDEventAccelerometer";
-static NSString *OEHIDEventAxisXKey              = @"OEHIDEventAxisX";
-static NSString *OEHIDEventAxisYKey              = @"OEHIDEventAxisY";
-static NSString *OEHIDEventAxisZKey              = @"OEHIDEventAxisZ";
-static NSString *OEHIDEventIRKey                 = @"OEHIDEventIR";
-static NSString *OEHIDEventIRInfoKey               = @"OEHIDEventIRInfo";
-static NSString *OEHIDEventWiimoteExtensionKey   = @"OEHIDEventWiimoteExtension";
-static NSString *OEHIDEventWiimoteExtensionTypeKey   = @"OEHIDEventWiimoteExtensionType";
 static NSString *OEHIDEventDirectionKey          = @"OEHIDEventDirection";
+static NSString *OEHIDEventAccelerometerKey      = @"OEHIDEventAccelerometer";
+static NSString *OEHIDEventIRKey                 = @"OEHIDEventIR";
+static NSString *OEHIDEventWiimoteExtensionKey   = @"OEHIDEventWiimoteExtension";
 static NSString *OEHIDEventButtonNumberKey       = @"OEHIDEventButtonNumber";
 static NSString *OEHIDEventStateKey              = @"OEHIDEventState";
 static NSString *OEHIDEventHatSwitchTypeKey      = @"OEHIDEventHatSwitchType";

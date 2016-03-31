@@ -101,6 +101,14 @@ typedef enum : NSUInteger {
 - (void)didExecute;
 
 /*!
+ * @method presentDoubleBufferedFBO
+ * @discussion
+ * If the core returns YES from needsDoubleBufferedFBO,
+ * call this method when you wish to swap buffers.
+ */
+- (void)presentDoubleBufferedFBO;
+
+/*!
  * @method willRenderFrameOnAlternateThread
  * @discussion
  * 2D - Not used.
@@ -155,9 +163,6 @@ typedef enum : NSUInteger {
 
 OE_EXPORTED_CLASS
 @interface OEGameCore : NSResponder <OESystemResponderClient>
-{
-    BOOL                    isRunning OE_DEPRECATED("check -rate instead"); //used
-}
 
 // TODO: Move all ivars/properties that don't need overriding to a category?
 @property(weak)     id<OEGameCoreDelegate> delegate;
@@ -225,7 +230,7 @@ OE_EXPORTED_CLASS
  * @abstract The ideal time between -executeFrame calls when rate=1.0.
  * This property is only read at the start and cannot be changed.
  */
-@property (nonatomic, readonly) NSTimeInterval        frameInterval;
+@property (nonatomic, readonly) NSTimeInterval frameInterval;
 
 /*!
  * @property rate
@@ -242,7 +247,7 @@ OE_EXPORTED_CLASS
 /*!
  * @method executeFrame
  * @discussion
- * Called every 1/(rate*frameInterval) seconds by -frameRefreshThread.
+ * Called every 1/(rate*frameInterval) seconds by -runGameLoop:.
  * The core should produce 1 frameInterval worth of audio and can output 1 frame of video.
  * If the game core option OEGameCoreOptionCanSkipFrames is set, the property shouldSkipFrame may be YES.
  * In this case the core can read from videoBuffer but must not write to it. All work done to render video can be skipped.
@@ -302,10 +307,9 @@ OE_EXPORTED_CLASS
  * @abstract If the game flickers when rendering directly to IOSurface.
  * @discussion
  * 3D -
- * Because the game's IOSurface will update on the app side if glFlushRender()
- * or some other GL functions are called, it can see incompletely rendered frames.
- * OE can work around this by rendering to two framebuffers and copying between them.
- * Definitely needed by Mupen+Rice at least.
+ * Some cores' OpenGL renderers accidentally cause the IOSurface to update early,
+ * either by calling glFlush() or through GL driver bugs. This implements a workaround.
+ * Used by Mupen64Plus.
  */
 @property (nonatomic, readonly) BOOL needsDoubleBufferedFBO;
 
@@ -407,13 +411,8 @@ OE_EXPORTED_CLASS
 
 - (NSTrackingAreaOptions)mouseTrackingOptions;
 
-
 - (NSSize)outputSize;
 - (void)setRandomByte;
-
-#pragma mark - Volume - Optional
-
--(void)setVolume:(CGFloat)volume;
 
 #pragma mark - Save state - Optional
 
@@ -427,6 +426,10 @@ OE_EXPORTED_CLASS
 
 - (void)setCheat:(NSString *)code setType:(NSString *)type setEnabled:(BOOL)enabled;
 
+#pragma mark - Volume - Optional
+
+-(void)setVolume:(CGFloat)volume;
+
 #pragma mark - Discs - Optional
 
 @property(readonly) NSUInteger discCount;
@@ -439,12 +442,12 @@ OE_EXPORTED_CLASS
 // There should be no need to override these methods.
 @interface OEGameCore (Internal)
 /*!
- * @method frameRefreshThread:
+ * @method runGameLoop:
  * @discussion
  * Cores may implement this if they wish to control their entire event loop.
  * This is not recommended.
  */
-- (void)frameRefreshThread:(id)anArgument;
+- (void)runGameLoop:(id)anArgument;
 
 /*!
  * @method startEmulation
@@ -470,7 +473,7 @@ OE_EXPORTED_CLASS
 
 - (BOOL)loadFileAtPath:(NSString *)path DEPRECATED_ATTRIBUTE;
 
-@property(getter=isEmulationPaused) BOOL pauseEmulation OE_DEPRECATED("use -rate");
+@property(getter=isEmulationPaused) BOOL pauseEmulation;
 
 - (void)fastForward:(BOOL)flag OE_DEPRECATED("use -rate");
 - (void)rewind:(BOOL)fla OE_DEPRECATED("use -rate");

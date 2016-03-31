@@ -34,6 +34,7 @@
 - (void)handleHIDEvent:(OEHIDEvent *)anEvent;
 
 - (void)axisMoved:(OEHIDEvent *)anEvent;
+
 - (void)accelerometerMoved:(OEHIDEvent *)anEvent;
 - (void)IRMoved:(OEHIDEvent *)anEvent;
 - (void)wiimoteExtensionChanged:(OEHIDEvent *)anEvent;
