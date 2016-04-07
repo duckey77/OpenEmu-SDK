@@ -260,6 +260,15 @@ OE_EXPORTED_CLASS
  */
 - (void)resetEmulation;
 
+/*!
+ * @method beginPausedExecution
+ * @abstract Run the thread without appearing to execute the game.
+ * @discussion OpenEmu may ask the core to save the game, etc. even though it is paused.
+ * Some cores need to be run their -executeFrame to process the save message (e.g. Mupen).
+ * Call this method from inside the save method to handle this case without disturbing the UI.
+ */
+- (void)beginPausedExecution;
+- (void)endPausedExecution;
 #pragma mark - Video
 
 /*!
