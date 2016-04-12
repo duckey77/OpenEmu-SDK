@@ -93,14 +93,6 @@ typedef enum : NSUInteger {
 - (void)presentDoubleBufferedFBO;
 
 /*!
- * @method presentDoubleBufferedFBO
- * @discussion
- * If the core returns YES from needsDoubleBufferedFBO,
- * call this method when you wish to swap buffers.
- */
-- (void)presentDoubleBufferedFBO;
-
-/*!
  * @method willRenderFrameOnAlternateThread
  * @discussion
  * 2D - Not used.
