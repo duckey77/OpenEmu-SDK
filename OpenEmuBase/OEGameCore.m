@@ -50,6 +50,7 @@ NSString *const OEGameCoreErrorDomain = @"org.openemu.GameCore.ErrorDomain";
     BOOL                    shouldStop;
     BOOL                    singleFrameStep;
     BOOL                    isRewinding;
+    BOOL                    isPausedExecution;
 
     NSTimeInterval          lastRate;
 }
@@ -149,21 +150,6 @@ static NSTimeInterval defaultTimeInterval = 60.0;
     return NO;
 }
 
-- (void)setPauseEmulation:(BOOL)paused
-{
-    if (_rate == 0 && paused) return;
-    if (_rate != 0 && !paused) return;
-
-    // Set rate to 0 and store the previous rate.
-
-    if (paused) {
-        lastRate = _rate;
-        _rate = 0;
-    } else {
-        _rate = lastRate;
-    }
-}
-
 - (void)setupEmulation
 {
 }
@@ -192,99 +178,97 @@ static NSTimeInterval defaultTimeInterval = 60.0;
 
     while(!shouldStop)
     {
-    @autoreleasepool
-    {
-#if 0
-        gameTime += 1. / [self frameInterval];
-        if(wasZero && gameTime >= 1)
+        @autoreleasepool
         {
-            NSUInteger audioBytesGenerated = ringBuffers[0].bytesWritten;
-            double expectedRate = [self audioSampleRateForBuffer:0];
-            NSUInteger audioSamplesGenerated = audioBytesGenerated/(2*[self channelCount]);
-            double realRate = audioSamplesGenerated/gameTime;
-            NSLog(@"AUDIO STATS: sample rate %f, real rate %f", expectedRate, realRate);
-            wasZero = 0;
-        }
+#if 0
+            gameTime += 1. / [self frameInterval];
+            if(wasZero && gameTime >= 1)
+            {
+                NSUInteger audioBytesGenerated = ringBuffers[0].bytesWritten;
+                double expectedRate = [self audioSampleRateForBuffer:0];
+                NSUInteger audioSamplesGenerated = audioBytesGenerated/(2*[self channelCount]);
+                double realRate = audioSamplesGenerated/gameTime;
+                NSLog(@"AUDIO STATS: sample rate %f, real rate %f", expectedRate, realRate);
+                wasZero = 0;
+            }
 #endif
 
-        // Frame skipping actually isn't possible with LLE...
-        self.shouldSkipFrame = NO;
+            // Frame skipping actually isn't possible with LLE...
+            self.shouldSkipFrame = NO;
 
-        BOOL executing = _rate > 0 || singleFrameStep;
 
-        if(executing && isRewinding)
-        {
-            if (singleFrameStep) {
-                singleFrameStep = isRewinding = NO;
-            }
+            BOOL executing = _rate > 0 || singleFrameStep || isPausedExecution;
 
-            NSData *state = [[self rewindQueue] pop];
-            if(state)
+
+            if(executing && isRewinding)
             {
+                if (singleFrameStep) {
+                    singleFrameStep = isRewinding = NO;
+                }
+
+                NSData *state = [[self rewindQueue] pop];
+                if(state)
+                {
+                    [_renderDelegate willExecute];
+                    [self executeFrame];
+                    [_renderDelegate didExecute];
+
+                    [self deserializeState:state withError:nil];
+                }
+            }
+            else if(executing)
+            {
+                singleFrameStep = NO;
+                //OEPerfMonitorObserve(@"executeFrame", gameInterval, ^{
+
+                if([self supportsRewinding] && rewindCounter == 0)
+                {
+                    NSData *state = [self serializeStateWithError:nil];
+                    if(state)
+                    {
+                        [[self rewindQueue] push:state];
+                    }
+                    rewindCounter = [self rewindInterval];
+                }
+                else
+                {
+                    --rewindCounter;
+                }
+
                 [_renderDelegate willExecute];
                 [self executeFrame];
                 [_renderDelegate didExecute];
-
-                [self deserializeState:state withError:nil];
+                //});
             }
-        }
-        else if(executing)
-        {
-            singleFrameStep = NO;
-            //OEPerfMonitorObserve(@"executeFrame", gameInterval, ^{
 
-            if([self supportsRewinding] && rewindCounter == 0)
+            NSTimeInterval frameInterval = self.frameInterval;
+            NSTimeInterval adjustedRate = _rate ?: 1;
+            NSTimeInterval advance = 1.0 / (adjustedRate * frameInterval);
+
+            emulatedTime += advance;
+            realTime = OEMonotonicTime();
+
+            // if we are running more than a second behind, synchronize
+            if(realTime - emulatedTime > 1.0)
             {
-                NSData *state = [self serializeStateWithError:nil];
-                if(state)
-                {
-                    [[self rewindQueue] push:state];
-                }
-                rewindCounter = [self rewindInterval];
-            }
-            else
-            {
-                --rewindCounter;
+                NSLog(@"Synchronizing because we are %g seconds behind", realTime - emulatedTime);
+                emulatedTime = realTime;
             }
 
-            [_renderDelegate willExecute];
-            [self executeFrame];
-            [_renderDelegate didExecute];
-            //});
+            OEWaitUntil(emulatedTime);
+
+            // Service the event loop, which may now contain HID events, exactly once.
+            // TODO: If paused, this burns CPU waiting to unpause, because it still runs at 1x rate.
+            CFRunLoopRunInMode(kCFRunLoopDefaultMode, 0, 0);
         }
-
-        // Process the event loop exactly once.
-        // TODO: If paused, this burns CPU waiting to unpause.
-        CFRunLoopRunInMode(kCFRunLoopDefaultMode, 0, 0);
-
-        NSTimeInterval frameInterval = self.frameInterval;
-        NSTimeInterval adjustedRate = _rate ?: 1;
-        NSTimeInterval advance = 1.0 / (adjustedRate * frameInterval);
-
-        emulatedTime += advance;
-        realTime = OEMonotonicTime();
-
-        // if we are running more than a second behind, synchronize
-        if(realTime - emulatedTime > 1.0)
-        {
-            NSLog(@"Synchronizing because we are %g seconds behind", realTime - emulatedTime);
-            emulatedTime = realTime;
-        }
-
-        OEWaitUntil(emulatedTime);
-    }
     }
 
     [[self delegate] gameCoreDidFinishFrameRefreshThread:self];
 }
 
-- (BOOL)isEmulationPaused
-{
-    return _rate == 0;
-}
-
 - (void)stopEmulation
 {
+    [_renderDelegate suspendFPSLimiting];
     shouldStop = YES;
     DLog(@"Ending thread");
     [self didStopEmulation];
@@ -313,40 +297,8 @@ static NSTimeInterval defaultTimeInterval = 60.0;
     if ([self class] == GameCoreClass) return;
     if (_rate != 0) return;
 
+    [_renderDelegate resumeFPSLimiting];
     self.rate = 1;
-    shouldStop = NO;
-}
-
-- (void)fastForwardAtSpeed:(CGFloat)fastForwardSpeed;
-{
-    // FIXME: Need implementation.
-}
-
-- (void)rewindAtSpeed:(CGFloat)rewindSpeed;
-{
-    // FIXME: Need implementation.
-}
-
-- (void)slowMotionAtSpeed:(CGFloat)slowMotionSpeed;
-{
-    // FIXME: Need implementation.
-}
-
-- (void)stepFrameForward
-{
-    singleFrameStep = YES;
-}
-
-- (void)stepFrameBackward
-{
-    singleFrameStep = isRewinding = YES;
-}
-
-- (void)setRate:(float)rate
-{
-    NSLog(@"Rate change %f -> %f", _rate, rate);
-
-    _rate = rate;
 }
 
 #pragma mark - ABSTRACT METHODS
@@ -477,6 +429,75 @@ static NSTimeInterval defaultTimeInterval = 60.0;
     {
         isRewinding = NO;
     }
+}
+
+- (void)setPauseEmulation:(BOOL)paused
+{
+    if (_rate == 0 && paused)  return;
+    if (_rate != 0 && !paused) return;
+
+    // Set rate to 0 and store the previous rate.
+    if (paused) {
+        lastRate = _rate;
+        _rate = 0;
+    } else {
+        _rate = lastRate;
+    }
+}
+
+- (BOOL)isEmulationPaused
+{
+    return _rate == 0;
+}
+
+- (void)fastForwardAtSpeed:(CGFloat)fastForwardSpeed;
+{
+    // FIXME: Need implementation.
+}
+
+- (void)rewindAtSpeed:(CGFloat)rewindSpeed;
+{
+    // FIXME: Need implementation.
+}
+
+- (void)slowMotionAtSpeed:(CGFloat)slowMotionSpeed;
+{
+    // FIXME: Need implementation.
+}
+
+- (void)stepFrameForward
+{
+    singleFrameStep = YES;
+}
+
+- (void)stepFrameBackward
+{
+    singleFrameStep = isRewinding = YES;
+}
+
+- (void)setRate:(float)rate
+{
+    NSLog(@"Rate change %f -> %f", _rate, rate);
+
+    _rate = rate;
+}
+
+- (void)beginPausedExecution
+{
+    if (isPausedExecution == YES) return;
+
+    isPausedExecution = YES;
+    [_renderDelegate suspendFPSLimiting];
+    [_audioDelegate pauseAudio];
+}
+
+- (void)endPausedExecution
+{
+    if (isPausedExecution == NO) return;
+
+    isPausedExecution = NO;
+    [_renderDelegate resumeFPSLimiting];
+    [_audioDelegate resumeAudio];
 }
 
 #pragma mark - Audio
