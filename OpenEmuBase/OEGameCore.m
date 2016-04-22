@@ -599,10 +599,6 @@ static NSTimeInterval defaultTimeInterval = 60.0;
 {
 }
 
-- (void) setVolume:(CGFloat)volume
-{
-}
-
 #pragma mark - Discs
 
 - (NSUInteger)discCount

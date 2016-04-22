@@ -426,10 +426,6 @@ OE_EXPORTED_CLASS
 
 - (void)setCheat:(NSString *)code setType:(NSString *)type setEnabled:(BOOL)enabled;
 
-#pragma mark - Volume - Optional
-
--(void)setVolume:(CGFloat)volume;
-
 #pragma mark - Discs - Optional
 
 @property(readonly) NSUInteger discCount;
