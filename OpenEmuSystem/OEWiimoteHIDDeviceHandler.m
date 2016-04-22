@@ -168,8 +168,12 @@ static const OEHIDEventAxis OEWiimoteProControllerRightJoystickAxisYUsage = OEHI
 typedef enum {
     OEWiimoteExpansionIdentifierNunchuck          = 0x0000,
     OEWiimoteExpansionIdentifierClassicController = 0x0101,
+    OEWiimoteExpansionIdentifierGuitar            = 0x0103,
+    OEWiimoteExpansionIdentifierDrums             = 0x0103,
+    OEWiimoteExpansionIdentifierTurntable         = 0x0103,
     OEWiimoteExpansionIdentifierProController     = 0x0120,
     OEWiimoteExpansionIdentifierFightingStick     = 0x0257,
+    OEWiimoteExpansionIdentifierBalanceBoard      = 0x0402,
     OEWiimoteExpansionIdentifierMotionPlus        = 0x0405,
     OEWiimoteExpansionIdentifierMotionPlusNunchuk = 0x0505,
     OEWiimoteExpansionIdentifierMotionPlusClassic = 0x0705,
@@ -330,6 +334,7 @@ static void OE_wiimoteIOHIDReportCallback(void            *context,
         _expansionPortEnabled = YES;
         _expansionPortAttached = NO;
         _expansionType = OEWiimoteExpansionTypeNotConnected;
+        [self OE_sendCommandWithData:(const uint8_t[]){ 0x12, 0x02, OEWiimoteReportTypeCoreButtons } length:3];
 
         _analogSettled = NO;
         dispatch_after(dispatch_time(DISPATCH_TIME_NOW, 0.5 * NSEC_PER_SEC), dispatch_get_main_queue(), ^{
@@ -509,41 +514,46 @@ enum {
     if(response[1] != 0x3D && _expansionType != OEWiimoteExpansionTypeWiiUProController)
         [self OE_parseWiimoteButtonData:(response[2] << 8 | response[3])];
 
-    // if(!_expansionPortEnabled || !_expansionPortAttached) return;
-
-    switch(response[1])
+    if (_expansionType == OEWiimoteExpansionTypeWiiUProController ||
+        _expansionType == OEWiimoteExpansionTypeFightingStick)
     {
-            // Right now, we should only get type 0x37; set in OE_configureReportType
-        case OEWiimoteReportTypeCoreButtons : break;
-        case OEWiimoteReportTypeCoreAccel :
-            [self OE_handleAccelReportData:response +  2 length:length -  2];
-            break;
-        case OEWiimoteReportTypeCoreAccel12IR :
-            [self OE_handleAccelReportData:response +  2 length:length -  2];
-            [self OE_handleIRReportData:response +  7 length:length -  7 mode:OEWiimoteIRModeExtended];
-            break;
-        case OEWiimoteReportTypeCore8Expan :
-        case OEWiimoteReportTypeCore19Expan :
-            [self OE_handleExpansionReportData:response +  4 length:length -  4];
-            break;
-        case OEWiimoteReportTypeCoreAccel16Expan :
-            [self OE_handleAccelReportData:response +  2 length:length -  2];
-            [self OE_handleExpansionReportData:response +  7 length:length -  7];
-            break;
-        case OEWiimoteReportTypeCore10IR9Expan :
-            [self OE_handleIRReportData:response +  4 length:length -  4 mode:OEWiimoteIRModeBasic];
-            [self OE_handleExpansionReportData:response + 14 length:length - 14];
-            break;
-        case OEWiimoteReportTypeCoreAccel10IR6Expan :
-            [self OE_handleAccelReportData:response +  2 length:length -  2];
-            [self OE_handleIRReportData:response +  7 length:length -  7 mode:OEWiimoteIRModeBasic];
-            [self OE_handleExpansionReportData:response + 17 length:length - 17];
-            break;
-        case OEWiimoteReportType21Expan : [self OE_handleExpansionReportData:response +  2 length:length -  2]; break;
-        case 0x22 : NSLog(@"Ack %#x, Error: %#x", response[4], response[5]);              break;
+        [self OE_handleExpansionReportData:response +  4 length:length -  4];
+    }
+    else
+    {
+        switch(response[1])
+        {
+            // set in OE_configureReportType, set based on Expansion plugged in
+            case OEWiimoteReportTypeCoreButtons : break;
+            case OEWiimoteReportTypeCoreAccel :
+                [self OE_parseWiimoteAccelData:response +  2 length:length -  2];
+                break;
+            case OEWiimoteReportTypeCoreAccel12IR :
+                [self OE_parseWiimoteAccelData: response+  2 length:length -  2];
+                [self OE_parseWiimoteIRData:response +  7 length:length -  7 mode:OEWiimoteIRModeExtended];
+                break;
+            case OEWiimoteReportTypeCore8Expan :
+            case OEWiimoteReportTypeCore19Expan :
+                [self OE_handleExpansionReportData:response +  4 length:length -  4];
+                break;
+            case OEWiimoteReportTypeCoreAccel16Expan :
+                [self OE_parseWiimoteAccelData:response +  2 length:length -  2];
+                [self OE_handleExpansionReportData:response +  7 length:length -  7];
+                break;
+            case OEWiimoteReportTypeCore10IR9Expan :
+                [self  OE_parseWiimoteIRData:response +  4 length:length -  4 mode:OEWiimoteIRModeBasic];
+                [self  OE_handleExpansionReportData:response + 14 length:length - 14];
+                break;
+            case OEWiimoteReportTypeCoreAccel10IR6Expan :
+                [self OE_parseWiimoteAccelData:response +  2 length:length -  2];
+                [self OE_parseWiimoteIRData:response +  7 length:length -  7 mode:OEWiimoteIRModeBasic];
+                [self OE_handleExpansionReportData:response + 17 length:length - 17];
+                break;
+            case OEWiimoteReportType21Expan : [self OE_handleExpansionReportData:response +  2 length:length -  2]; break;
+            case 0x22 : NSLog(@"Ack %#x, Error: %#x", response[4], response[5]);              break;
+        }
     }
 }
-
 
 - (void)OE_handleExpansionReportData:(const uint8_t *)data length:(NSUInteger)length;
 {
@@ -610,25 +620,65 @@ enum {
         _expansionInitilization = OEExpansionInitializationStepNone;
         OEWiimoteExpansionType expansion = OEWiimoteExpansionTypeNotConnected;
 
+        uint16_t expansionGroup = (response[17] << 8) | response[18];
         uint16_t expansionType = (response[21] << 8) | response[22];
 
         if (expansionErr){
             expansion = OEWiimoteExpansionTypeNotConnected;
+            [self OE_sendCommandWithData:(const uint8_t[]){ 0x12, 0x02, OEWiimoteReportTypeCoreButtons } length:3];
         }else{
-            switch(expansionType)
+            switch (expansionGroup)
             {
-                case OEWiimoteExpansionIdentifierNunchuck:
-                    expansion = OEWiimoteExpansionTypeNunchuck;
+                case 0x0000 :
+
+                    switch(expansionType)
+                    {
+                        case OEWiimoteExpansionIdentifierNunchuck:
+                            expansion = OEWiimoteExpansionTypeNunchuck;
+                            [self OE_sendCommandWithData:(const uint8_t[]){ 0x12, 0x02, OEWiimoteReportTypeCoreAccel10IR6Expan } length:3];
+                            break;
+                        case OEWiimoteExpansionIdentifierClassicController:
+                            expansion = OEWiimoteExpansionTypeClassicController;
+                            [self OE_sendCommandWithData:(const uint8_t[]){ 0x12, 0x02, OEWiimoteReportTypeCoreAccel10IR6Expan } length:3];
+                            break;
+                        case OEWiimoteExpansionIdentifierGuitar:
+                            expansion = OEWiimoteExpansionTypeGuitar;
+                            [self OE_sendCommandWithData:(const uint8_t[]){ 0x12, 0x02, OEWiimoteReportTypeCoreAccel10IR6Expan } length:3];
+                            break;
+                        case OEWiimoteExpansionIdentifierBalanceBoard :
+                            expansion = OEWiimoteExpansionTypeBalanceBoard;
+                            break;
+                        case OEWiimoteExpansionIdentifierProController:
+                            expansion = OEWiimoteExpansionTypeWiiUProController;
+                            [self OE_sendCommandWithData:(const uint8_t[]){ 0x12, 0x02, OEWiimoteReportTypeCore19Expan } length:3];
+                            break;
+                        case OEWiimoteExpansionIdentifierFightingStick:
+                            expansion = OEWiimoteExpansionTypeFightingStick;
+                            [self OE_sendCommandWithData:(const uint8_t[]){ 0x12, 0x02, OEWiimoteReportTypeCoreAccel10IR6Expan } length:3];
+                            break;
+                    }
                     break;
-                case OEWiimoteExpansionIdentifierClassicController:
-                    expansion = OEWiimoteExpansionTypeClassicController;
+                case 0x0100 :
+
+                    switch(expansionType)
+                    {
+                        case OEWiimoteExpansionIdentifierDrums :
+                            expansion = OEWiimoteExpansionTypeDrums;
+                            [self OE_sendCommandWithData:(const uint8_t[]){ 0x12, 0x02, OEWiimoteReportTypeCoreAccel10IR6Expan } length:3];
+                            break;
+                        case OEWiimoteExpansionIdentifierClassicController :
+                            expansion = OEWiimoteExpansionTypeClassicController;
+                            [self OE_sendCommandWithData:(const uint8_t[]){ 0x12, 0x02, OEWiimoteReportTypeCoreAccel10IR6Expan } length:3];
+                            break;
+                    }
                     break;
-                case OEWiimoteExpansionIdentifierProController:
-                    expansion = OEWiimoteExpansionTypeWiiUProController;
+
+                case 0x0300 :
+                    if( expansionType == OEWiimoteExpansionIdentifierTurntable)
+                            expansion = OEWiimoteExpansionTypeTurntable;
+                    [self OE_sendCommandWithData:(const uint8_t[]){ 0x12, 0x02, OEWiimoteReportTypeCoreAccel10IR6Expan } length:3];
                     break;
-                case OEWiimoteExpansionIdentifierFightingStick:
-                    expansion = OEWiimoteExpansionTypeFightingStick;
-                    break;
+
             }
         }
         if(expansion != _expansionType)
@@ -642,66 +692,6 @@ enum {
 
             [self OE_dispatchWiimoteExtensionEvent:(OEHIDEventWiimoteExtension)_expansionType ExtensionType:_expansionType devNum:[self deviceNumber] timestamp:timestamp cookie:(OEHIDEventWiimoteExtension)_expansionType];
         }
-    }
-}
-
-- (void)OE_handleAccelReportData:(const uint8_t *)data length:(NSUInteger)length;
-{
-    NSTimeInterval timestamp = [[NSDate date] timeIntervalSince1970];
-
-    uint16_t AccelData = data[2] << 16 | data[3] << 8 | data[4];
-    uint16_t changes = AccelData ^ _latestAcellerometerReport.wiimote;
-    _latestAcellerometerReport.wiimote = AccelData;
-
-    if (changes) {
-        float AccelX = data[2] ;
-        float AccelY = data[3] ;
-        float AccelZ = data[4] ;
-
-        [self OE_dispatchAccelerometerEvent:OEHIDEventAccelerometerWiimote axisX:AccelX axisY:AccelY axisZ:AccelZ devNum:[self deviceNumber] timestamp:timestamp cookie:OEHIDEventAccelerometerWiimote];
-    }
-}
-
-- (void)OE_handleIRReportData:(const uint8_t *)data length:(NSUInteger)length mode:(OEWiimoteIRMode)mode;
-{
-
-
-    NSTimeInterval timestamp = [[NSDate date] timeIntervalSince1970];
-
-    switch (mode)
-    {
-            wiimoteIR IRinfo;
-
-        case OEWiimoteIRModeBasic:
-        {
-            IRinfo.dX[0] = data[0] | ((data[2] & 0x30) << 4);
-            IRinfo.dY[0] = data[1] | ((data[2] & 0xC0) << 2);
-
-            IRinfo.dX[1] = data[3] | ((data[2] & 0x03) << 8);
-            IRinfo.dY[1] = data[4] | ((data[2] & 0x0C) << 6);
-
-            IRinfo.dX[2] = data[5] | ((data[7] & 0x30) << 4);
-            IRinfo.dY[2] = data[6] | ((data[7] & 0xC0) << 2);
-
-            IRinfo.dX[3] = data[8] | ((data[7] & 0x03) << 8);
-            IRinfo.dY[3] = data[9] | ((data[7] & 0x0C) << 6);
-        }
-
-            [self OE_dispatchIREvent:OEHIDEventIRWiimote IRinfo:IRinfo timestamp:timestamp devNum:[self deviceNumber] cookie:OEHIDEventIRWiimote];
-            break;
-        case OEWiimoteIRModeExtended:
-        {
-            for( int i = 0; i < 4; i++ ) {
-                IRinfo.dX[i] = (data[3 * i] | ((data[(3 * i) + 2] & 0x30) << 4));
-                IRinfo.dY[i] = data[(3 * i) + 1] | ((data[(3 * i) + 2] & 0xC0) << 2);
-                IRinfo.dSize[i] = data[(3 * i) + 2] & 0x0F;
-            }
-        }
-
-            [self OE_dispatchIREvent:OEHIDEventIRWiimote IRinfo:IRinfo timestamp:timestamp devNum:[self deviceNumber] cookie:OEHIDEventIRWiimote];
-            break;
-        case OEWiimoteIRModeFull:
-            break;
     }
 }
 
@@ -814,6 +804,55 @@ enum {
     });
 }
 
+- (void)OE_parseWiimoteAccelData:(const uint8_t *)data length:(NSUInteger)length;
+{
+    NSTimeInterval timestamp = [[NSDate date] timeIntervalSince1970];
+
+    [self OE_dispatchAccelerometerEvent:OEHIDEventAccelerometerWiimote axisX:data[2] axisY:data[3] axisZ:data[4] devNum:[self deviceNumber] timestamp:timestamp cookie:OEHIDEventAccelerometerWiimote];
+}
+
+- (void)OE_parseWiimoteIRData:(const uint8_t *)data length:(NSUInteger)length mode:(OEWiimoteIRMode)mode;
+{
+    NSTimeInterval timestamp = [[NSDate date] timeIntervalSince1970];
+
+    switch (mode)
+    {
+            wiimoteIR IRinfo;
+
+        case OEWiimoteIRModeBasic:
+        {
+            IRinfo.dX[0] = data[0] | ((data[2] & 0x30) << 4);
+            IRinfo.dY[0] = data[1] | ((data[2] & 0xC0) << 2);
+
+            IRinfo.dX[1] = data[3] | ((data[2] & 0x03) << 8);
+            IRinfo.dY[1] = data[4] | ((data[2] & 0x0C) << 6);
+
+            IRinfo.dX[2] = data[5] | ((data[7] & 0x30) << 4);
+            IRinfo.dY[2] = data[6] | ((data[7] & 0xC0) << 2);
+
+            IRinfo.dX[3] = data[8] | ((data[7] & 0x03) << 8);
+            IRinfo.dY[3] = data[9] | ((data[7] & 0x0C) << 6);
+        }
+
+            [self OE_dispatchIREvent:OEHIDEventIRWiimote IRinfo:IRinfo timestamp:timestamp devNum:[self deviceNumber] cookie:OEHIDEventIRWiimote];
+            break;
+        case OEWiimoteIRModeExtended:
+        {
+            for( int i = 0; i < 4; i++ ) {
+                IRinfo.dX[i] = (data[3 * i] | ((data[(3 * i) + 2] & 0x30) << 4));
+                IRinfo.dY[i] = data[(3 * i) + 1] | ((data[(3 * i) + 2] & 0xC0) << 2);
+                IRinfo.dSize[i] = data[(3 * i) + 2] & 0x0F;
+            }
+        }
+
+            [self OE_dispatchIREvent:OEHIDEventIRWiimote IRinfo:IRinfo timestamp:timestamp devNum:[self deviceNumber] cookie:OEHIDEventIRWiimote];
+            break;
+        case OEWiimoteIRModeFull:
+            break;
+    }
+}
+
+
 - (void)OE_parseNunchuckButtonData:(uint8_t)data;
 {
     NSTimeInterval timestamp = [[NSDate date] timeIntervalSince1970];
@@ -832,17 +871,8 @@ enum {
 {
     NSTimeInterval timestamp = [[NSDate date] timeIntervalSince1970];
 
-    uint16_t AccelData = data[2] << 16 | data[3] << 8 | data[4];
-    uint16_t changes = AccelData ^ _latestAcellerometerReport.nunchuck;
-    _latestAcellerometerReport.nunchuck = AccelData;
+        [self OE_dispatchAccelerometerEvent:OEHIDEventAccelerometerNunchuk axisX:data[2] axisY:data[3] axisZ:data[4] devNum:[self deviceNumber] timestamp:timestamp cookie:OEHIDEventAccelerometerNunchuk];
 
-    if (changes) {
-        float AccelX = data[2];
-        float AccelY = data[3];
-        float AccelZ = data[4];
-
-        [self OE_dispatchAccelerometerEvent:OEHIDEventAccelerometerNunchuk axisX:AccelX axisY:AccelY axisZ:AccelZ devNum:[self deviceNumber] timestamp:timestamp cookie:OEHIDEventAccelerometerNunchuk];
-    }
 }
 
 - (void)OE_parseNunchuckJoystickXData:(uint8_t)xData yData:(uint8_t)yData;
@@ -1114,7 +1144,7 @@ enum {
                  case OEHIDEventTypeAxis :
                      event = [OEHIDEvent axisEventWithDeviceHandler:nil timestamp:0 axis:usage direction:OEHIDEventAxisDirectionNull cookie:cookie];
                      break;
-                 case OEHIDEventTypeButton :
+                case OEHIDEventTypeButton :
                      event = [OEHIDEvent buttonEventWithDeviceHandler:nil timestamp:0 buttonNumber:usage state:OEHIDEventStateOn cookie:cookie];
                      break;
                  case OEHIDEventTypeHatSwitch :
@@ -1125,6 +1155,10 @@ enum {
                      break;
                  case OEHIDEventTypeTrigger :
                      event = [OEHIDEvent triggerEventWithDeviceHandler:nil timestamp:0 axis:usage direction:OEHIDEventAxisDirectionPositive cookie:cookie];
+                     break;
+                 case OEHIDEventTypeIR :
+                 case OEHIDEventTypeAccelerometer:
+                 case OEHIDEventTypeWiimoteExtension:
                      break;
              }
 

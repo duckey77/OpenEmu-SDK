@@ -41,6 +41,10 @@ typedef enum {
     OEWiimoteExpansionTypeNotConnected,
     OEWiimoteExpansionTypeNunchuck,
     OEWiimoteExpansionTypeClassicController,
+    OEWiimoteExpansionTypeGuitar,
+    OEWiimoteExpansionTypeDrums,
+    OEWiimoteExpansionTypeTurntable,
+    OEWiimoteExpansionTypeBalanceBoard,
     OEWiimoteExpansionTypeWiiUProController,
     OEWiimoteExpansionTypeFightingStick,
 
