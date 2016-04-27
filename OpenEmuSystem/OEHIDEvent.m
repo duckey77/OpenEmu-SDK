@@ -194,9 +194,6 @@ NSString *NSStringFromOEHIDEventWiimoteExtension(OEHIDEventWiimoteExtension Exte
     {
         case  OEHIDEventWiimoteExtensionNunchuck : ret = @"Nunchuk"; break ;
         case  OEHIDEventWiimoteExtensionClassicController : ret = @"Classic Controller"; break;
-        case  OEHIDEventWiimoteExtensionGuitar : ret = @"Guitar"; break;
-        case  OEHIDEventWiimoteExtensionDrums : ret = @"Drums"; break;
-        case  OEHIDEventWiimoteExtensionTurntable : ret = @"Turntable"; break;
         case  OEHIDEventWiimoteExtensionWiiUProController : ret = @"WiiU Pro Controller"; break;
         case  OEHIDEventWiimoteExtensionFightingStick : ret = @"Fightin Stick"; break ;
         case  OEHIDEventWiimoteExtensionNotConnected : ret = @"Not Connected"; break;

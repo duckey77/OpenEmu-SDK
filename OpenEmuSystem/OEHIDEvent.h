@@ -74,9 +74,6 @@ typedef enum _OEHIDEventWiimoteExtension : NSUInteger{
     OEHIDEventWiimoteExtensionNotConnected,
     OEHIDEventWiimoteExtensionNunchuck,
     OEHIDEventWiimoteExtensionClassicController,
-    OEHIDEventWiimoteExtensionGuitar,
-    OEHIDEventWiimoteExtensionDrums,
-    OEHIDEventWiimoteExtensionTurntable,
     OEHIDEventWiimoteExtensionWiiUProController,
     OEHIDEventWiimoteExtensionFightingStick,
 } OEHIDEventWiimoteExtension;

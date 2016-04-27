@@ -168,9 +168,6 @@ static const OEHIDEventAxis OEWiimoteProControllerRightJoystickAxisYUsage = OEHI
 typedef enum {
     OEWiimoteExpansionIdentifierNunchuck          = 0x0000,
     OEWiimoteExpansionIdentifierClassicController = 0x0101,
-    OEWiimoteExpansionIdentifierGuitar            = 0x0103,
-    OEWiimoteExpansionIdentifierDrums             = 0x0103,
-    OEWiimoteExpansionIdentifierTurntable         = 0x0103,
     OEWiimoteExpansionIdentifierProController     = 0x0120,
     OEWiimoteExpansionIdentifierFightingStick     = 0x0257,
     OEWiimoteExpansionIdentifierBalanceBoard      = 0x0402,
@@ -641,10 +638,6 @@ enum {
                             expansion = OEWiimoteExpansionTypeClassicController;
                             [self OE_sendCommandWithData:(const uint8_t[]){ 0x12, 0x02, OEWiimoteReportTypeCoreAccel10IR6Expan } length:3];
                             break;
-                        case OEWiimoteExpansionIdentifierGuitar:
-                            expansion = OEWiimoteExpansionTypeGuitar;
-                            [self OE_sendCommandWithData:(const uint8_t[]){ 0x12, 0x02, OEWiimoteReportTypeCoreAccel10IR6Expan } length:3];
-                            break;
                         case OEWiimoteExpansionIdentifierBalanceBoard :
                             expansion = OEWiimoteExpansionTypeBalanceBoard;
                             break;
@@ -662,10 +655,6 @@ enum {
 
                     switch(expansionType)
                     {
-                        case OEWiimoteExpansionIdentifierDrums :
-                            expansion = OEWiimoteExpansionTypeDrums;
-                            [self OE_sendCommandWithData:(const uint8_t[]){ 0x12, 0x02, OEWiimoteReportTypeCoreAccel10IR6Expan } length:3];
-                            break;
                         case OEWiimoteExpansionIdentifierClassicController :
                             expansion = OEWiimoteExpansionTypeClassicController;
                             [self OE_sendCommandWithData:(const uint8_t[]){ 0x12, 0x02, OEWiimoteReportTypeCoreAccel10IR6Expan } length:3];
@@ -674,9 +663,7 @@ enum {
                     break;
 
                 case 0x0300 :
-                    if( expansionType == OEWiimoteExpansionIdentifierTurntable)
-                            expansion = OEWiimoteExpansionTypeTurntable;
-                    [self OE_sendCommandWithData:(const uint8_t[]){ 0x12, 0x02, OEWiimoteReportTypeCoreAccel10IR6Expan } length:3];
+
                     break;
 
             }
